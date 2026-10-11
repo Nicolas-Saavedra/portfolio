@@ -1,0 +1,85 @@
+---
+// PROTOTYPE (throwaway, lives only on the prototype/work-history branch).
+// Question: what does one section look like that does both Selected Work's job (depth for Peers) and the Timeline's
+// (coverage for Recruiters)? Fusion variants switchable via ?variant=A.. and the floating bar (← → keys), mounted in a
+// stub of the home page: the real Request Automaton hero (variant G) above, a contact stub below.
+// ?otw=1 turns Open to Work on (the variant changes its own emphasis; nothing is reordered). ?hero=docked (default) | live | off.
+import "../../styles/global.css";
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PROTOTYPE · Work history fusion</title>
+  </head>
+  <body class="min-h-screen bg-bg text-text antialiased">
+    <main id="page"></main>
+    <script>
+      import hero from "../../prototype/request-automaton/variants/g-scroll-docking";
+      import { EXAMPLE_RUN } from "../../prototype/request-automaton/model";
+      import { COPY } from "../../prototype/request-automaton/types";
+      import { CASE_STUDIES, CV, EDUCATION, NOW, OPEN_TO_WORK, ROLES, TRACKS } from "../../prototype/work-history/content";
+      import type { Variant } from "../../prototype/work-history/types";
+      import { contactStub } from "../../prototype/work-history/stubs";
+      import { mountSwitcher } from "../../prototype/work-history/switcher";
+
+      const modules = import.meta.glob<{ default: Variant }>("../../prototype/work-history/variants/*.ts");
+      const byKey: Record<string, () => Promise<{ default: Variant }>> = {};
+      for (const [path, load] of Object.entries(modules)) {
+        const file = path.split("/").pop()!;
+        byKey[file[0].toUpperCase()] = load;
+      }
+      const keys = Object.keys(byKey).sort();
+      const params = new URLSearchParams(location.search);
+      const openToWork = params.get("otw") === "1";
+      const heroMode = params.get("hero") ?? "docked";
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const page = document.getElementById("page")!;
+
+      // The hero: G as it stands. "docked" mounts it in its reduced-motion form (the docked panel, no scrolling
+      // morph), which is what a reader sees once past the hero; "live" runs the full scroll-docking.
+      const heroRoot = document.createElement("div");
+      if (heroMode !== "off") {
+        hero.mount(heroRoot, { run: EXAMPLE_RUN, copy: COPY, reducedMotion: heroMode === "docked" || reducedMotion });
+        heroRoot.lastElementChild?.remove(); // G's own "prototype filler" below the hero
+      }
+
+      const slot = document.createElement("div");
+      slot.id = "variant-root";
+      slot.setAttribute("data-work-history-slot", "");
+      page.append(heroRoot, slot, contactStub());
+
+      let cleanup: (() => void) | undefined;
+      const names: Record<string, string> = {};
+      async function show(key: string) {
+        cleanup?.();
+        slot.replaceChildren();
+        const v = (await byKey[key]()).default;
+        names[key] = v.name;
+        cleanup = v.mount(slot, {
+          entries: ROLES,
+          work: [...CASE_STUDIES].sort((a, b) => a.order - b.order),
+          education: EDUCATION,
+          tracks: TRACKS,
+          cv: CV,
+          now: NOW,
+          openToWork,
+          openToWorkCopy: OPEN_TO_WORK,
+          reducedMotion,
+        });
+        console.log("[prototype] work-history variant", key, v.name, { openToWork, heroMode, reducedMotion });
+      }
+
+      for (const k of keys) names[k] = (await byKey[k]()).default.name;
+      const asked = params.get("variant")?.toUpperCase() ?? keys[0];
+      const initial = keys.includes(asked) ? asked : keys[0];
+      await show(initial);
+      if (location.hash === "#work") slot.scrollIntoView();
+      if (import.meta.env.DEV)
+        mountSwitcher(keys, names, initial, show, [
+          { param: "otw", values: ["0", "1"], label: (v) => `otw: ${v === "1" ? "on" : "off"}` },
+          { param: "hero", values: ["docked", "live", "off"], label: (v) => `hero: ${v}` },
+        ]);
+    </script>
+  </body>
+</html>
