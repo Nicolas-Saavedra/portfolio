@@ -80,7 +80,7 @@ export const CASE_STUDIES: CaseStudy[] = [
       "Students in Lenguajes y Máquinas proved things about automata on paper but had no hands-on way to build one and watch it run.",
     did: "As a research assistant I wrote GOLD-python, an open-source library for building and simulating DFAs, NFAs and ε-NFAs, with union and conversion between them. For my thesis I rebuilt the idea as mercury-lib: DFAs, with a d3 visualizer.",
     outcome:
-      "200+ students used GOLD-python in the course. mercury-lib's renderer is the ancestor of the automaton at the top of this page.",
+      "Students in the course built and ran their own automata with GOLD-python. mercury-lib's renderer is the ancestor of the automaton at the top of this page.",
     technologies: ["Python", "Graph traversal", "d3"],
     facts: [{ value: "200+", label: "students in Lenguajes y Máquinas" }],
     href: "/work/gold-to-mercury",
@@ -99,9 +99,9 @@ export const CASE_STUDIES: CaseStudy[] = [
     period: { start: "2025-01", end: "2025-06", label: "Jan – Jun 2025" },
     summary: "A platform 1,000+ first-semester students used to reach academic and wellbeing services, plus the tools staff ran it with.",
     problem:
-      "First-semester students had 20+ institutional services spread across offices and websites, and the staff running their induction did much of it by hand.",
-    did: "In a team of 6, I built the features that give students real-time access to 20+ services in React and FastAPI, built internal tools and messaging for staff on FastAPI, Docker, NGINX and Traefik, and automated deploys with GitHub Actions.",
-    outcome: "1,000+ first-semester students adopted it, and releases went out through a pipeline instead of by hand.",
+      "First-semester students had their institutional services spread across offices and websites, and the staff running their induction did much of it by hand.",
+    did: "In a team of 6, I built the features that give students real-time access to those services in one place, in React and FastAPI, built internal tools and messaging for staff on FastAPI, Docker, NGINX and Traefik, and automated deploys with GitHub Actions.",
+    outcome: "First-semester students adopted it to reach their academic and wellbeing services, and releases went out through a pipeline instead of by hand.",
     technologies: ["React", "FastAPI", "Docker", "NGINX", "Traefik", "GitHub Actions"],
     facts: [
       { value: "1,000+", label: "first-semester students" },
@@ -121,7 +121,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     summary: "I've taken 150+ people from their first HTML tag to React, after tutoring 40+ students a semester.",
     problem: "People joining the Continuing Education frontend course need to go from no web background to building a React app in one course.",
     did: "I teach the course end to end: HTML, CSS layout with Flexbox and Grid, Git, Tailwind, React and React Query. Before that I tutored programming one on one: data structures, recursion, memory, pandas and NumPy.",
-    outcome: "150+ students have taken the course with me so far, and I tutored 40+ students each semester before it.",
+    outcome: "I've taught the course since August 2025, taking each cohort from a blank page to a React app.",
     technologies: ["HTML", "CSS", "Git", "Tailwind", "React", "React Query"],
     facts: [
       { value: "150+", label: "students taught, HTML to React" },
