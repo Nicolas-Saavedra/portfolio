@@ -1,0 +1,3 @@
+# Astro, static, with the Signature Piece as the only island
+
+The site is mostly static content plus one heavy interactive element, and the old SvelteKit site rotted partly because content lived in components. We chose Astro over SvelteKit (the previous stack) and React app frameworks (Next.js, TanStack Start): content collections give schema-validated data files that an agent can edit with the build catching mistakes, and islands mean the Signature Piece is the only JavaScript shipped. Adding interactivity beyond that one island should be treated as a deviation from this decision, not a default.
