@@ -59,12 +59,16 @@ function blinka(c: CaseStudy) {
   );
 }
 
-/** GOLD-python → mercury-lib as a two-state DFA; only DFAs survive the rebuild. H drops F's years inside the states,
- * which the rail and the panel header already print. */
-function gold() {
-  const q0 = { x: 84, y: 100 }, q1 = { x: 222, y: 100 }, r = 28;
-  const loop = (x: number) => `M${x - 13} ${q0.y - 25} C${x - 30} ${q0.y - 72} ${x + 30} ${q0.y - 72} ${x + 13} ${q0.y - 25}`;
-  const edge = `M${q0.x + 24} ${q0.y - 14} Q${(q0.x + q1.x) / 2} ${q0.y - 46} ${q1.x - 25} ${q1.y - 13}`;
+/** GOLD-python → mercury-lib as a two-state DFA; only DFAs survive the rebuild. Each state carries its library's short
+ * name (from `short`, "GOLD → mercury") and, under it, the role Nicolas built it in (from `role`). No years: the rail and
+ * the panel header already print the period. */
+function gold(c: CaseStudy) {
+  const [nameA = "GOLD", nameB = "mercury"] = c.short.split(" → ");
+  const [roleA = "", roleB = ""] = c.role.split(/,\s*then\s*/i).map((s) => s.toLowerCase());
+  const q0 = { x: 84, y: 98 }, q1 = { x: 222, y: 98 }, r = 34;
+  // Loops and edges meet the circle at (±16, -30) and (±30, -16), both on r = 34.
+  const loop = (x: number) => `M${x - 16} ${q0.y - 30} C${x - 32} ${q0.y - 80} ${x + 32} ${q0.y - 80} ${x + 16} ${q0.y - 30}`;
+  const edge = `M${q0.x + 30} ${q0.y - 16} Q${(q0.x + q1.x) / 2} ${q0.y - 52} ${q1.x - 30} ${q1.y - 16}`;
   return svg(
     272,
     164,
@@ -72,16 +76,18 @@ function gold() {
       comet(edge, 0),
       line(`M8 ${q0.y} H${q0.x - r - 1}`), head(q0.x - r, q0.y, 0),
       text(8, q0.y - 8, "start"),
-      line(edge), head(q1.x - 25, q1.y - 13, 35),
-      text((q0.x + q1.x) / 2, q0.y - 36, "thesis rebuild", "lb", "middle"),
-      line(loop(q0.x)), head(q0.x + 13, q0.y - 25, 108),
-      text(q0.x, q0.y - 72, "DFA, NFA, ε-NFA", "lb dim", "middle"),
-      line(loop(q1.x)), head(q1.x + 13, q1.y - 25, 108),
-      text(q1.x, q1.y - 72, "DFA + d3", "lb dim", "middle"),
+      line(edge), head(q1.x - 30, q1.y - 16, 35),
+      text((q0.x + q1.x) / 2, q0.y - 40, "rebuilt", "lb", "middle"),
+      line(loop(q0.x)), head(q0.x + 16, q0.y - 30, 108),
+      text(q0.x, q0.y - 78, "DFA, NFA, ε-NFA", "lb dim", "middle"),
+      line(loop(q1.x)), head(q1.x + 16, q1.y - 30, 108),
+      text(q1.x, q1.y - 78, "DFA + d3", "lb dim", "middle"),
       `<circle class="nd" cx="${q0.x}" cy="${q0.y}" r="${r}"/>`,
       `<circle class="nd accept" cx="${q1.x}" cy="${q1.y}" r="${r}"/><circle class="nd inner" cx="${q1.x}" cy="${q1.y}" r="${r - 5}"/>`,
-      text(q0.x, q0.y + 52, "GOLD-python", "lb strong", "middle"),
-      text(q1.x, q1.y + 52, "mercury-lib", "lb strong", "middle"),
+      text(q0.x, q0.y + 4, nameA, "lb strong", "middle"),
+      text(q1.x, q1.y + 4, nameB, "lb strong", "middle"),
+      text(q0.x, q0.y + 58, roleA, "lb", "middle"),
+      text(q1.x, q1.y + 58, roleB, "lb", "middle"),
     ].join(""),
   );
 }

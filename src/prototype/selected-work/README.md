@@ -17,6 +17,11 @@ Each round's variants are kept at a tag; check one out to see an original.
 | 1 | A ruled index, B figure cards, C career automaton, D deck | "Iterate over C, steal B's graphs, numbers should make sense. 1 INFRA ENGINEER in blinka is no real value. It should still remain in decent height." | `prototype-selected-work-round-1` |
 | 2 | E (B's figure inside C's readout), F (figure on the rail side, horizontal rail on phones) | "Combine them; E for the desktop view, shifting to F on the mobile view." | `prototype-selected-work-round-3` (also has B, C) |
 | 3 | H | Approved as the baseline. | this branch |
+| h1 | H, first iteration: facts under the caption, more room at 1024, motion gated on view, GOLD's states labelled | | this branch |
+
+Decided by Nicolas after round 3:
+- **Reading order on phones stays.** The figure comes after the text body in the DOM (a screen reader reaches the caption after the trace) but is drawn above the panel on phones. He's fine with that; keep it.
+- **GOLD's DFA states carry labels,** but never the period, which the rail and the panel header already print.
 
 Taste rules that came out of the hero's rounds and still apply: daring in staging, calm in interaction. That means no popups or tooltips over content, no layout that depends on hover or focus, and no portfolio slop (gradients, glass, skill bars, percentages).
 
@@ -69,11 +74,13 @@ section#sw-h
 
   ```
   columns: pad | trace 1fr | 1.75rem | evidence 19rem | pad
-  rows:    head / titles / main / facts / foot (1fr) / end pad
+  rows:    head / titles / main / facts / slack (1fr) / foot / end pad
   ```
 
-  `.sw-h-body` turns into `display: contents`, so header, titles, trace, facts and footer are cells of the frame. The trace spans `main/foot` on the left; the figure sits in `main`, with the facts under it, on the right. `.sw-h-bg` spans every cell and draws the border, since the frame itself has no box worth styling.
+  `.sw-h-body` turns into `display: contents`, so header, titles, trace, facts and footer are cells of the frame. The trace spans `main/foot` (main, facts and slack) on the left; the figure sits in `main`, with the facts under it, on the right. `.sw-h-bg` spans every cell and draws the border, since the frame itself has no box worth styling.
+- **The slack row.** `slack` is the only flexible row the trace spans, and grid sizing leaves items that span a flexible track out of the auto rows. So `main` is exactly as tall as the tallest figure, `facts` as the tallest facts, and the trace's excess lands in `slack`, below the facts. Before h1 there was no `slack` (`foot` was the `1fr` row): the trace's excess was split over `main` and `facts`, which pushed the facts 20–40 px below the caption at 1440 and about 90 px at 1024. Don't give `main` or `facts` an `fr` size, and keep the trace's span ending at `foot`.
 - **Selection.** Selection is pure CSS. Each state gets one rule group from `css()`: `#sw-h:has(#sw-h-rN:checked) .sw-h-cs[data-cs="N"]` sets `visibility: visible`, sets opacity 1 on its parts, and sets `--sel` (the frame tint). The motion rules (trace steps, draw-in, fades, comet) hang off the same selector, so they re-run whenever a state is selected.
+- **The view gate.** q₀ is checked on load, so without a gate its motion would run while the section is still below the fold. `.sw-h-grid` runs `sw-h-gate` on a `view()` timeline (`animation-range: entry 0px entry 200px`), which flips the registered property `--sw-h-play` from `paused` to `running` once the grid's top is about 100 px into view. `@container style(--sw-h-play: paused)` then sets `animation-play-state: paused !important` on everything inside the grid, so q₀'s animations wait at their first frame (backwards fill: steps and lines hidden) until the grid shows. Once they've finished, scrolling away and back doesn't replay them; any later selection happens in view and runs at once.
 
 ## Invariants (keep these)
 
@@ -89,19 +96,20 @@ section#sw-h
 3. **One render per Case Study.** Don't duplicate a figure (or anything else) to get a different placement per breakpoint; place the single element with grid instead.
 4. **No number printed twice in one view.** Counts live only in `facts`.
    - The trace copy in `content.ts` no longer repeats them.
-   - The figures don't print them: Blinka's PR counts were removed from its figure; NoEstasSolx's figure says "students" and "services" and only *draws* the 20+ service nodes; GOLD's states no longer carry the years.
+   - The figures don't print them: Blinka's PR counts were removed from its figure; NoEstasSolx's figure says "students" and "services" and only *draws* the 20+ service nodes; GOLD's states carry the library names and roles instead of the years.
    - On desktop the panel header hides the period, because the rail shows it under each name.
    - Any number a figure does draw must come from `facts` via `fact()`, never be typed in.
 5. **One breakpoint, `BP = 1024`, and no blend between layouts.** Everything that differs between the layouts sits in `@media (min-width: BP)`.
    - Below 1024, E's layout breaks. At 768 the trace column shrinks to about 70 px next to the 19 rem evidence column, and the section grows to about 2,700 px (round-3 measurement).
    - At 1024, E's layout keeps the whole readout on one 900 px screen. F's layout at 1024 is about 1,110 px, with trace lines of about 110 characters.
    - To compare again, change `BP` temporarily and re-measure both widths.
-6. **Height budgets.** Measured on `#variant-root` with the hero off. Budgets are fixed; the H column is as of `f0876ac`.
+   - The fluid sizes between 1024 and 1152 (see "Layout" below) are `clamp()`s, not a second breakpoint: the layout is the same, only the rail, gap and trace text are a little smaller.
+6. **Height budgets.** Measured on `#variant-root` with the hero off, in headless Chromium (overlay scrollbars). Budgets are fixed; the H column is as of h1 (`f0876ac` in brackets where it differs).
 
    | Width | Budget | H now | Set by |
    | --- | --- | --- | --- |
-   | 1440 × 900 | ≤ 815, and the selected readout, figure included, fully on one screen | 815 (panel top 152, height 583) | the trace row (Blinka, GOLD and NoEstasSolx tie) |
-   | 1024 | none set; keep the readout on one 900 px screen | 931 (panel top 152, height 699, bottom at 851) | NoEstasSolx's trace (463 px) |
+   | 1440 × 900 | ≤ 815, and the selected readout, figure included, fully on one screen | 815 (panel top 152, height 583) | the trace (Blinka, GOLD and NoEstasSolx tie at 347) |
+   | 1024 | none set; keep the readout on one 900 px screen with margin | 873 (panel top 152, height 641, bottom at 793) [931, bottom at 851] | NoEstasSolx's trace |
    | 768 | none set | 1,133 (panel top 514, height 540) | Blinka's body (540) and the figure slot (256, NoEstasSolx and Teaching) |
    | 360 | ≤ 1,567, and the panel top ≤ 572 (where it sits in F, so a tapped readout isn't pushed further below the fold) | 1,407 (panel top 524, height 819) | GOLD → mercury's body (two-line title, two links) |
 
@@ -112,16 +120,23 @@ section#sw-h
    - Figures are `aria-hidden`; the `figcaption` carries the meaning.
    - Each "Read the Case Study" link has an `sr-only` title.
    - Every Case Study links its `href` with a real `<a>`.
-8. **Reduced motion.** `prefers-reduced-motion: reduce` kills every animation and transition in `#sw-h`, and all motion rules sit inside `@media (prefers-reduced-motion: no-preference)`. The final state must be complete without them: lines whole (no dash pattern is applied outside the motion rules) and the comet invisible.
+8. **Reduced motion.** `prefers-reduced-motion: reduce` kills every animation and transition in `#sw-h`, and all motion rules sit inside `@media (prefers-reduced-motion: no-preference)`. The final state must be complete without them: lines whole (no dash pattern is applied outside the motion rules) and the comet invisible. The view gate sits inside the same media query; under reduced motion there's nothing to gate.
 
 ## Tuned numbers and why
 
 ### Layout
 - **Rail column 15 rem, evidence column 19 rem, gutter 1.75 rem (desktop).** The rail was 17 rem in C, and was narrowed to give the panel width. 19 rem lets the about-300 px figures render at about 1:1, so SVG labels stay about 11 px; at E's original 17 rem they shrank to about 9 px.
+- **Fluid from 1024 to 1152 px (h1).** Above 1152 the content width is capped by `max-w-6xl`, so everything there is as at 1440. Between 1024 and 1152 three sizes ramp linearly with `clamp()`, to widen the trace column (300 → 328 px at 1024) and shorten the readout:
+  - rail column 13.75 → 15 rem (`clamp(13.75rem, 15.625vw + 3.75rem, 15rem)`). The minimum is what Blinka's "Jan 2026 – now · draft" needs on the rail without an ellipsis; 12.5 rem truncated the "draft";
+  - rail-to-panel gap 2 → 2.5 rem;
+  - trace text 14 → 14.5 px (line height stays 1.6).
+
+  Section heights: 873 at 1024, 854 at 1060, 835 at 1100, 815 from 1152.
+  Not used: a narrower evidence column (shrinks figure labels below 11 px) and a narrower gutter (no measurable gain).
 - **`--pad` is 1 rem, and 1.5 rem from 640 px.** It's the panel's inner padding in both layouts, and the header's horizontal padding.
 - **Figure and trace both start 1.125 rem below the titles (desktop),** so their top edges align.
 - **Type:**
-  - Trace text is 14 px / 1.55 on phones and 14.5 px / 1.6 on desktop.
+  - Trace text is 14 px / 1.55 on phones and 14.5 px / 1.6 on desktop (14 px at 1024; see above).
   - The title is 1.375 rem on phones and 1.5 rem on desktop.
   - Facts are mono `text-lg`, with the label underneath in `text-xs`.
   - Phones went down from F's 15 px to fit the 360 budget.
@@ -144,11 +159,13 @@ section#sw-h
 - **Figure lines:** draw in 0.8 s (`pathLength="1"`, `stroke-dasharray: 1`).
 - **Nodes:** fade 0.45 s. Service squares and stair corners fade one by one, 45 ms apart after 0.35 s. GOLD's accept state fills at 1.9 s.
 - **Comet:** runs once over 1.3 s after 0.7 s. Each comet's own offset is `--d`; Blinka's pipeline comet starts 500 ms after the request comet.
+- **View gate:** q₀'s first run waits until the grid's top is 100 px into view (half of the `entry 0px entry 200px` range, where the discrete property flips). On desktop that's the panel header and title; the trace (131 px into the panel) fades up as it scrolls in. On phones the rail is in view and the figure is about to enter. A later flip would show an empty panel for a moment; an earlier one runs the trace before it's visible.
 
 ### Figures
 - **Viewport widths are 272–318.** `svg()` caps the rendered width at 1.15 × the viewBox width, so figures don't balloon on wide plates.
 - **`pw()` assumes 6.6 px per glyph** for 11 px mono. If the mono font changes, the pills misfit.
 - **Lines** are a 60 % hue / `--faint` mix; plate borders a 28 % hue / `--border` mix; the frame border a 30 % mix of `--sel`.
+- **GOLD's states (h1).** Each state holds its library's short name, split from `short` ("GOLD → mercury"), and has the role it was built in under it, split from `role` on ", then " ("research assistant", "thesis author"). The edge says "rebuilt" (it said "thesis rebuild" before; "thesis" is now under q₁). States are r = 34 (were 28), so "mercury" fits inside the accept state's inner ring (r = 29); the loops and edge meet the circles at (±16, −30) and (±30, −16). The viewBox stays 272 × 164, so the figure's height is unchanged. Labels render at 11.7 px at 1024 and 1440, 12.7 px at 768 and 12.4 px at 360. If `short` or `role` change shape, the labels fall back to "GOLD"/"mercury" and empty roles.
 
 ## Gotchas
 
@@ -172,13 +189,16 @@ section#sw-h
   - Set theme and motion with `page.emulateMedia({ colorScheme, reducedMotion })`.
 - **Figures depend on fact labels.** `fact(c, "services")` finds NoEstasSolx's service count by a word in the label. If you rename the label in `content.ts`, the fan silently falls back to 20 nodes. Blinka's figure picks its pill names from `technologies` by substring, so `"AWS Lambda"` becomes `Lambda`.
 - **Long labels on the phone rail.** "GOLD → mercury" wraps under its node. Four states fit; a fifth Case Study would need smaller labels or a different phone rail.
+- **Animated custom properties can't drive `animation-*` through `var()`.** A property set by `@keyframes` is animation-tainted, so `animation-play-state: var(--sw-h-play)` silently computes to `running`. That's why the gate uses a style query instead. Check with `getComputedStyle(el).animationPlayState`, not with the property's value.
+- **Never put the gate's pause rule on `.sw-h-grid` itself.** It carries the `sw-h-gate` animation; pausing it would freeze the timeline at `paused` forever. The rule targets `.sw-h-grid *` only.
+- **Testing the gate.** Load with the hero on (the section starts about 1,600–2,600 px down), then read `getAnimations({ subtree: true })` on `.sw-h-cs[data-cs="0"]`: all `paused` at `currentTime` 0 before the grid is in view, `running` once its top is about 100 px in. With `?hero=off` the grid is in view on load, so motion runs at once. A screenshot taken without scrolling the section into view shows q₀'s readout half-empty (steps and lines at their first frame); scroll first, then wait about 2.6 s.
 
 ## Known issues
 
-1. **Air above the facts on desktop.** The trace spans the `main` and `facts` rows. When the tallest trace is taller than the tallest figure plus the facts, the grid grows those rows, so the facts sit lower than the caption needs, at the same y for every state. That's stable, but at 1440 it leaves roughly 40–60 px between caption and facts. More generally, per-row reservation on desktop costs a little height: the sum of each row's maximum is at least the tallest single Case Study.
-2. **1024 is tight.** At 931 px the panel's bottom is at 851, so a 900 px screen still holds it. A longer trace in any Case Study (NoEstasSolx's sets that row) pushes the footer off one screen. Re-measure 1024 whenever copy changes.
-3. **Accessibility of `display: contents`.** The article's role and its `aria-labelledby` name rely on the browser keeping semantics for `display: contents` elements. Current Chromium, Firefox and Safari do; older Safari dropped them. Do a real screen-reader pass, which nobody has done yet.
-4. **DOM order vs visual order on phones.** The figure comes after the text body in the DOM (a screen reader reaches the caption after the trace), but on phones it's drawn above the panel. That's a deliberate reading order, not yet confirmed with Nicolas.
-5. **Motion runs on load, even off screen.** q₀ is checked by default, so its draw-in and comet run on page load, even if the section is below the fold. Gating the first run with `animation-timeline: view()` would fix that.
-6. **Unlabelled DFA states.** GOLD's figure has empty states now that the years are gone, with the library names below. If that reads as too bare, label the edge or the loops instead; don't print the period again.
-7. **The radiogroup pattern** is announced as "radio, 1 of 4" rather than as tabs. That's acceptable, but worth hearing in a screen reader.
+Fixed or decided in h1 (numbers as before h1): 1 (air above the facts), 2 (1024 tight), 4 (reading order on phones, decided), 5 (motion on load), 6 (empty DFA states). What's left of them is folded into the list below.
+
+1. **A little air above the facts on desktop remains.** The facts now sit right under the tallest figure (NoEstasSolx/Blinka 223 px, GOLD 234, Teaching 233 at 1440), so the gap from caption to facts is 16 px for GOLD and Teaching and 27 px for Blinka and NoEstasSolx (was 37–48 at 1440, 95–106 at 1024). The 11 px difference is the figures' own heights; equalising them would mean resizing figures. Per-row reservation still costs a little: the sum of each row's maximum is at least the tallest single Case Study.
+2. **1024 has about 100 px of margin, not more.** 873 px, panel bottom at 793 on a 900 px screen (107 px to spare, was 49). Measured with overlay scrollbars: with a classic 15 px scrollbar the content is 15 px narrower at the same `vw`, so expect a few px more. NoEstasSolx's trace still sets the row; re-measure 1024 whenever copy changes.
+3. **The view gate needs scroll-driven animations and style queries.** Tested only in Chromium 153, which has both. In a browser missing either one, the gate does nothing and q₀'s motion runs on load as before h1. Nothing is ever left hidden: without the timeline `--sw-h-play` stays at its initial `running`, and without style queries the pause rule never applies.
+4. **Accessibility of `display: contents`.** The article's role and its `aria-labelledby` name rely on the browser keeping semantics for `display: contents` elements. Current Chromium, Firefox and Safari do; older Safari dropped them. Do a real screen-reader pass, which nobody has done yet.
+5. **The radiogroup pattern** is announced as "radio, 1 of 4" rather than as tabs. That's acceptable, but worth hearing in a screen reader.

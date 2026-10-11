@@ -218,13 +218,18 @@ function css(n: number): string {
       #sw-h .sw-h-draftmark{order:0;width:auto;padding:0 .375rem;border:1px dashed color-mix(in srgb,var(--peach) 60%,transparent);border-radius:4px}
     }
 
-    /* ── From BP (E): rail | panel, and inside the panel trace | evidence. ── */
+    /* ── From BP (E): rail | panel, and inside the panel trace | evidence. ──
+       Rail, gap and trace text ramp from compact at BP to full size at 1152 px, where max-w-6xl caps the content width,
+       so 1024 gets about 30 px more trace column and 1152 up is unchanged. The rail's minimum is what
+       Blinka's "Jan 2026 – now · draft" needs without an ellipsis. Sizes only; the layout is the same. */
     ${D}{
-      #sw-h .sw-h-grid{grid-template-columns:minmax(0,15rem) minmax(0,1fr);grid-template-rows:none;column-gap:2.5rem}
+      #sw-h .sw-h-grid{grid-template-columns:minmax(0,clamp(13.75rem,15.625vw + 3.75rem,15rem)) minmax(0,1fr);grid-template-rows:none;column-gap:clamp(2rem,6.25vw - 2rem,2.5rem)}
       #sw-h .sw-h-col{grid-column:1;grid-row:1}
       #sw-h .sw-h-frame{display:grid;grid-column:2;grid-row:1;
         grid-template-columns:var(--pad) minmax(0,1fr) 1.75rem minmax(0,19rem) var(--pad);
-        grid-template-rows:[head] auto [titles] auto [main] auto [facts] auto [foot] 1fr [end] 1.25rem [stop]}
+        grid-template-rows:[head] auto [titles] auto [main] auto [facts] auto [slack] 1fr [foot] auto [end] 1.25rem [stop]}
+      /* The trace spans main, facts and slack. Because slack is the only flexible row it spans, the trace's excess goes
+         there, so main and facts stay as tall as the tallest figure and facts, and the facts sit right under the caption. */
       #sw-h .sw-h-bg{display:block;grid-column:1/-1;grid-row:head/stop}
       #sw-h .sw-h-body{display:contents}
       #sw-h .sw-h-body > :not(.sw-h-head){margin-inline:0}
@@ -234,7 +239,7 @@ function css(n: number): string {
       #sw-h .sw-h-titles{grid-column:2/5;grid-row:titles;margin-top:1rem}
       #sw-h .sw-h-titles h3{font-size:1.5rem}
       #sw-h .sw-h-trace{grid-column:2;grid-row:main/foot;margin-top:1.125rem}
-      #sw-h .sw-h-steptext{font-size:14.5px;line-height:1.6}
+      #sw-h .sw-h-steptext{font-size:clamp(14px,.390625vw + 10px,14.5px);line-height:1.6}
       #sw-h .sw-h-fig{grid-column:4;grid-row:main;margin:1.125rem 0 0}
       #sw-h .sw-h-plate{padding:.5rem .375rem}
       #sw-h .sw-h-facts{grid-column:4;grid-row:facts;margin-top:1rem;padding-top:0;border-top:0}
@@ -247,6 +252,17 @@ function css(n: number): string {
       ${per.map((p) => p.show).join("\n")}
       @media (prefers-reduced-motion:no-preference){
         ${per.map((p) => p.motion).join("\n")}
+        /* Gate: q₀ is checked on load, so its motion would run off screen. A view timeline on the grid flips --sw-h-play
+           from paused to running once the grid's top is about 100 px into view; until then every animation inside waits
+           at its first frame. Once running, motion finishes even if scrolled away; later selections happen in view.
+           A style query, not var(): a property set by @keyframes is animation-tainted, so var() in animation-play-state
+           would fall back to running. Without scroll-driven animations or style queries, motion runs on load, as before. */
+        @supports (animation-timeline:view()){
+          #sw-h .sw-h-grid{animation:sw-h-gate linear both;animation-timeline:view();animation-range:entry 0px entry 200px}
+          @container style(--sw-h-play:paused){
+            #sw-h .sw-h-grid *,#sw-h .sw-h-grid *::before{animation-play-state:paused!important}
+          }
+        }
       }
     }
     /* No :has(): every Case Study in normal flow, each in its own frame, figure under its trace. */
@@ -260,6 +276,8 @@ function css(n: number): string {
       #sw-h .sw-h-bg,#sw-h .sw-h-hint{display:none}
       #sw-h .sw-h-period{display:inline}
     }
+    @property --sw-h-play{syntax:"running | paused";inherits:true;initial-value:running}
+    @keyframes sw-h-gate{from{--sw-h-play:paused}to{--sw-h-play:running}}
     @keyframes sw-h-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
     @keyframes sw-h-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
     @keyframes sw-h-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
