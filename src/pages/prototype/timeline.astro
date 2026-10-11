@@ -1,0 +1,70 @@
+---
+// PROTOTYPE (throwaway, lives only on the prototype/timeline branch).
+// Question: what should the Timeline look like on the home page?
+// Variants of the Timeline section, switchable via ?variant=A..D and the floating bar (← → keys), mounted in a
+// stub of the home page: the real Request Automaton hero (variant G) above, Selected Work and Contact stubs around.
+// ?otw=1 turns Open to Work on (the Timeline moves above Selected Work). ?hero=docked (default) | live | off.
+import "../../styles/global.css";
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PROTOTYPE · Timeline</title>
+  </head>
+  <body class="min-h-screen bg-bg text-text antialiased">
+    <main id="page"></main>
+    <script>
+      import hero from "../../prototype/request-automaton/variants/g-scroll-docking";
+      import { EXAMPLE_RUN } from "../../prototype/request-automaton/model";
+      import { COPY } from "../../prototype/request-automaton/types";
+      import { CV, EDUCATION, ENTRIES, NOW, TRACKS } from "../../prototype/timeline/data";
+      import type { Variant } from "../../prototype/timeline/types";
+      import { contactStub, selectedWorkStub } from "../../prototype/timeline/stubs";
+      import { mountSwitcher } from "../../prototype/timeline/switcher";
+
+      const modules = import.meta.glob<{ default: Variant }>("../../prototype/timeline/variants/*.ts");
+      const byKey: Record<string, () => Promise<{ default: Variant }>> = {};
+      for (const [path, load] of Object.entries(modules)) {
+        const file = path.split("/").pop()!;
+        byKey[file[0].toUpperCase()] = load;
+      }
+      const keys = Object.keys(byKey).sort();
+      const params = new URLSearchParams(location.search);
+      const openToWork = params.get("otw") === "1";
+      const heroMode = params.get("hero") ?? "docked";
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const page = document.getElementById("page")!;
+
+      // The hero: G as it stands. "docked" mounts it in its reduced-motion form (the docked panel, no scrolling
+      // morph), which is what a reader sees once past the hero; "live" runs the full scroll-docking.
+      const heroRoot = document.createElement("div");
+      if (heroMode !== "off") {
+        hero.mount(heroRoot, { run: EXAMPLE_RUN, copy: COPY, reducedMotion: heroMode === "docked" || reducedMotion });
+        heroRoot.lastElementChild?.remove(); // G's own "prototype filler" below the hero
+      }
+
+      const slot = document.createElement("div");
+      slot.setAttribute("data-timeline-slot", "");
+      const work = selectedWorkStub();
+      const contact = contactStub();
+      page.append(heroRoot, ...(openToWork ? [slot, work] : [work, slot]), contact);
+
+      let cleanup: (() => void) | undefined;
+      const names: Record<string, string> = {};
+      async function show(key: string) {
+        cleanup?.();
+        slot.replaceChildren();
+        const v = (await byKey[key]()).default;
+        names[key] = v.name;
+        cleanup = v.mount(slot, { entries: ENTRIES, education: EDUCATION, tracks: TRACKS, cv: CV, now: NOW, openToWork, reducedMotion });
+        console.log("[prototype] timeline variant", key, v.name, { openToWork, heroMode });
+      }
+
+      for (const k of keys) names[k] = (await byKey[k]()).default.name;
+      const initial = params.get("variant")?.toUpperCase() ?? keys[0];
+      await show(keys.includes(initial) ? initial : keys[0]);
+      if (import.meta.env.DEV) mountSwitcher(keys, names, initial, show);
+    </script>
+  </body>
+</html>
