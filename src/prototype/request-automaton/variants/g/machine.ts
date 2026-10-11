@@ -99,11 +99,14 @@ function sweep(a: number, b: number): number {
 export interface Machine {
   svg: SVGSVGElement;
   nodes: SVGGElement[];
-  setLayouts(hero: Layout, dock: Layout, size: { w: number; h: number }): void;
+  /** `slideFrom`: the progress at which states start moving sideways (0 unless the copy sits beside the hero). */
+  setLayouts(hero: Layout, dock: Layout, size: { w: number; h: number }, slideFrom: number): void;
   render(p: number, t: number, act: number | null): void;
   /** Section-space centre and radius of state i, and the token position, from the last render. */
   node(i: number): { x: number; y: number; r: number };
   token(): Pt | null;
+  /** Section-space top of the states (at their focused size) and the start arrow, from the last render. */
+  top(): number;
 }
 
 export function createMachine(run: Run, P: Plan, summary: string): Machine {
@@ -117,6 +120,8 @@ export function createMachine(run: Run, P: Plan, summary: string): Machine {
   };
 
   const svg = el("svg", { class: "g-machine pointer-events-none absolute left-0 top-0 overflow-visible", role: "group", "aria-label": summary });
+  // Landing marks: where each state will dock, so the panel's empty slot reads as a berth mid-dock.
+  const marks = states.map(() => el("circle", { fill: "none", stroke: "var(--border)", "stroke-width": 1.25, "stroke-dasharray": "3 4", opacity: 0 }, svg));
   const gEdges = el("g", {}, svg);
   const startPath = el("path", { fill: "none", "stroke-width": 1.3 }, gEdges);
   const startHead = el("path", {}, gEdges);
@@ -150,12 +155,12 @@ export function createMachine(run: Run, P: Plan, summary: string): Machine {
   const tokenGlow = el("circle", { r: 10, opacity: 0.22 }, svg);
   const tokenDot = el("circle", { r: 4.5 }, svg);
 
-  let H: Layout | null = null, Dk: Layout | null = null;
+  let H: Layout | null = null, Dk: Layout | null = null, slide0 = 0;
   const cur: { x: number; y: number; r: number }[] = states.map(() => ({ x: 0, y: 0, r: 0 }));
-  let tok: Pt | null = null;
+  let tok: Pt | null = null, topY = 0;
 
-  function setLayouts(hero: Layout, dock: Layout, size: { w: number; h: number }) {
-    H = hero; Dk = dock;
+  function setLayouts(hero: Layout, dock: Layout, size: { w: number; h: number }, slideFrom: number) {
+    H = hero; Dk = dock; slide0 = slideFrom;
     svg.setAttribute("width", f(size.w));
     svg.setAttribute("height", f(size.h));
     svg.setAttribute("viewBox", `0 0 ${f(size.w)} ${f(size.h)}`);
@@ -166,12 +171,13 @@ export function createMachine(run: Run, P: Plan, summary: string): Machine {
     const a = cur[j - 1], b = cur[j];
     const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
     const px = -dy / len, py = dx / len;
-    const bendFor = (L: Layout) => {
-      if (L.row[j - 1] === L.row[j]) return L === H ? -Math.min(34, len * 0.14) : 0;
+    // By role, not identity: with reduced motion the hero and dock are the same layout object.
+    const bendFor = (L: Layout, hero: boolean) => {
+      if (L.row[j - 1] === L.row[j]) return hero ? -Math.min(34, len * 0.14) : 0;
       const mx = (a.x + b.x) / 2;
       return Math.sign(px * (mx - L.cx) || 1) * 34; // turns between rows bulge outwards
     };
-    const bend = lerp(bendFor(H!), bendFor(Dk!), s);
+    const bend = lerp(bendFor(H!, true), bendFor(Dk!, false), s);
     const c = { x: (a.x + b.x) / 2 + px * bend, y: (a.y + b.y) / 2 + py * bend };
     const ua = Math.hypot(c.x - a.x, c.y - a.y) || 1, ub = Math.hypot(c.x - b.x, c.y - b.y) || 1;
     return {
@@ -184,10 +190,11 @@ export function createMachine(run: Run, P: Plan, summary: string): Machine {
   function render(p: number, t: number, act: number | null) {
     if (!H || !Dk || !n) return;
     const s = smooth(0, 1, p);
+    const sx = smooth(slide0, 1, p); // one factor for every x, so states keep their order and never cross
     const base = `color-mix(in srgb, var(--surface) ${Math.round(s * 100)}%, var(--bg))`;
     svg.style.setProperty("--g-halo", base);
     for (let i = 0; i < n; i++) {
-      cur[i].x = lerp(H.pos[i].x, Dk.pos[i].x, s);
+      cur[i].x = lerp(H.pos[i].x, Dk.pos[i].x, sx);
       cur[i].y = lerp(H.pos[i].y, Dk.pos[i].y, p); // linear in scroll: the machine holds still on screen while it docks
       cur[i].r = lerp(H.r[i], Dk.r[i], s);
     }
@@ -195,7 +202,7 @@ export function createMachine(run: Run, P: Plan, summary: string): Machine {
     const u0 = n > 1 ? { x: cur[1].x - cur[0].x, y: cur[1].y - cur[0].y } : { x: 1, y: 0 };
     const ul = Math.hypot(u0.x, u0.y) || 1;
     // Docked, C's arrow comes in from the left; in the hero, D's points along the first transition.
-    const dir = { x: lerp(u0.x / ul, 1, s), y: lerp(u0.y / ul, 0, s) };
+    const dir = { x: lerp(u0.x / ul, 1, sx), y: lerp(u0.y / ul, 0, sx) };
     const dl = Math.hypot(dir.x, dir.y) || 1;
     // Long enough to read as an arrow, short enough to stay on screen at 360px.
     const room = dir.x / dl > 0.5 ? (cur[0].x - cur[0].r - 6) / (dir.x / dl) : Infinity;
@@ -206,6 +213,17 @@ export function createMachine(run: Run, P: Plan, summary: string): Machine {
       e: { x: cur[0].x - (dir.x / dl) * (cur[0].r + 1), y: cur[0].y - (dir.y / dl) * (cur[0].r + 1) },
     };
     sq.c = { x: (sq.s.x + sq.e.x) / 2, y: (sq.s.y + sq.e.y) / 2 };
+    topY = Math.min(sq.s.y, ...cur.map((c) => c.y - c.r * 1.06));
+
+    // Each mark shows once the panel frame is up and fades out before any state (or its labels) reaches it.
+    const markIn = smooth(0.2, 0.5, p);
+    marks.forEach((m, i) => {
+      const d = Dk!.pos[i];
+      const room = Math.min(...cur.map((c) => Math.hypot(c.x - d.x, Math.max(0, d.y - c.y - 42, c.y - d.y)) - c.r * 1.06 - Dk!.r[i]));
+      const v = markIn * clamp(room / 28);
+      m.setAttribute("cx", f(d.x)); m.setAttribute("cy", f(d.y)); m.setAttribute("r", f(Dk!.r[i]));
+      m.setAttribute("opacity", v.toFixed(2));
+    });
 
     const ci = cursor(P, t);
     const pending = `color-mix(in srgb, var(--border) ${Math.round(s * 100)}%, var(--faint))`;
@@ -294,6 +312,6 @@ export function createMachine(run: Run, P: Plan, summary: string): Machine {
     tokenGlow.setAttribute("opacity", t >= P.endT ? "0" : "0.22");
   }
 
-  return { svg, nodes, setLayouts, render, node: (i) => cur[i], token: () => tok };
+  return { svg, nodes, setLayouts, render, node: (i) => cur[i], token: () => tok, top: () => topY };
 }
 

@@ -4,9 +4,9 @@
 import type { Variant } from "../types";
 import { TONES } from "./g/flavor";
 import { createBackdrop, type Clearing } from "./g/backdrop";
-import { HUE, cursor, durText, esc, plan, q, reqAt } from "./g/clock";
+import { HUE, cursor, durText, esc, plan, q, reqAt, tAtReq } from "./g/clock";
 import { createMachine, dockLayout, heroLayout, smooth } from "./g/machine";
-import { createPanel, inspectLine } from "./g/panel";
+import { createPanel, inspectLine, reserved } from "./g/panel";
 
 // A halo in the page background keeps copy readable over the glyph field (as in D).
 const HALO = "[text-shadow:0_0_18px_var(--bg),0_0_6px_var(--bg),0_0_2px_var(--bg)]";
@@ -42,6 +42,8 @@ const variant: Variant = {
     const where = m.city ? `${m.city} (${m.colo})` : m.colo;
     const meta = [where, m.http, m.tls, m.kex].filter(Boolean).join(" · ");
     const totalLabel = P.total !== undefined ? `${P.total} ms` : "unknown";
+    // What the hero's inspect line shows: a state's reveal, or the line the token is in while it plays.
+    const runningLine = (i: number) => `<span class="text-faint">${q(i)}</span> <span class="text-text">${esc(states[i].log)}</span>`;
     const summary =
       `Request automaton, ${example ? "example run" : "your request"}: ` +
       states.map((s) => `${s.label} ${durText(s, run)}`).join(", ") +
@@ -58,10 +60,12 @@ const variant: Variant = {
 <style>${STYLE}</style>
 <div data-fieldbox aria-hidden="true" class="pointer-events-none sticky top-0 -mb-[100svh] h-[100svh] w-full overflow-hidden"><canvas class="block h-full w-full"></canvas></div>
 <div class="relative mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-y-6 px-4 pt-12 sm:px-8 lg:px-14 ${
-      docked ? "pb-10 lg:pt-20" : "min-h-[100svh] pb-14 xl:grid-cols-[minmax(0,32rem)_minmax(0,1fr)] xl:gap-x-10 xl:pt-10"
+      docked
+        ? "pb-10 lg:pt-20"
+        : "min-h-[100svh] pb-14 lg:grid-cols-[minmax(0,23rem)_minmax(0,1fr)] lg:gap-x-8 lg:pt-10 xl:grid-cols-[minmax(0,32rem)_minmax(0,1fr)] xl:gap-x-10"
     }">
-  <header data-copy class="max-w-[34rem] self-start ${docked ? "" : "xl:self-center"} ${HALO}">
-    <h1 class="font-serif text-[clamp(3rem,10vw,6.5rem)] leading-[0.92] tracking-[-0.025em] text-text">${esc(copy.name)}</h1>
+  <header data-copy class="max-w-[34rem] self-start ${docked ? "" : "lg:self-center"} ${HALO}">
+    <h1 class="font-serif text-[clamp(3rem,10vw,6.5rem)] leading-[0.92] ${docked ? "" : "lg:text-[clamp(4.5rem,7.5vw,6.5rem)]"} tracking-[-0.025em] text-text">${esc(copy.name)}</h1>
     <p class="mt-5 text-xl font-medium text-text sm:text-2xl">${esc(copy.headline)}</p>
     <p class="mt-4 text-base leading-relaxed text-muted sm:text-[1.0625rem]">${esc(copy.intro)}</p>
     <ul class="mt-6 flex flex-col gap-2 font-mono text-[13px] text-text">
@@ -81,15 +85,18 @@ const variant: Variant = {
     docked
       ? ""
       : `<div class="flex min-w-0 flex-col">
-    <div data-transcript class="w-full font-mono text-[11.5px] leading-[1.65] text-muted xl:mt-6 xl:max-w-[34rem] xl:self-end ${HALO}">
+    <div data-transcript class="w-full font-mono text-[11.5px] leading-[1.65] text-muted lg:mt-6 lg:max-w-[34rem] lg:self-end ${HALO}">
       <p class="flex flex-wrap items-baseline justify-between gap-x-4 text-faint">
         <span class="flex items-center gap-2"><span aria-hidden="true" class="inline-block size-1.5 shrink-0 rounded-full ${example ? "bg-peach" : "bg-green"}"></span>${
           example ? "example run · your real request appears on the live site" : "your request, measured as this page loaded"
         }</span>
-        <span class="flex items-baseline gap-3"><button data-replay type="button" class="text-muted hover:text-text focus-visible:outline-2 focus-visible:outline-lavender" aria-label="Replay the request animation">↻ replay</button><span data-counter aria-hidden="true" class="text-[13px] tabular-nums text-text">0 ms</span></span>
+        <span class="flex items-baseline gap-3"><button data-replay type="button" class="text-muted hover:text-text focus-visible:outline-2 focus-visible:outline-lavender" aria-label="Replay the request animation">↻ replay</button><span data-counter aria-hidden="true" class="inline-block w-14 text-right text-[13px] tabular-nums text-text">0 ms</span></span>
       </p>
       ${meta ? `<p class="text-faint">${esc(meta)}</p>` : ""}
-      <p data-hero-inspect aria-hidden="true" class="mt-2 min-h-10 border-l border-border pl-3"></p>
+      <p aria-hidden="true" class="mt-2 grid border-l border-border pl-3">${reserved(
+        [null, ...states.keys()].map((a) => inspectLine(run, a)).concat(states.map((_, i) => runningLine(i))),
+        "data-hero-inspect",
+      )}</p>
       <p aria-hidden="true" class="mt-1 text-faint">scroll ↓ and the machine docks into its trace</p>
     </div>
     <div data-stage class="min-h-[26rem] flex-1"></div>
@@ -137,10 +144,14 @@ const variant: Variant = {
     const slot = $("[data-slot]")!;
     const unfold = (k: string) => $(`[data-unfold="${k}"]`)!;
     const stages: [HTMLElement, number, number, number][] = [
-      // The header, stats and label pass beneath the machine on their way up, so they appear only after it.
-      [frameEl, 0.3, 0.8, 0], [unfold("head"), 0.84, 1, 0], [unfold("stats"), 0.87, 1, 0], [unfold("label"), 0.94, 1, 0],
-      [unfold("inspect"), 0.9, 1, 0], [unfold("trace"), 0.72, 1, 28], [unfold("logs"), 0.8, 1, 28],
+      // Everything below the slot stays below the holding machine, so it rises early and fills the frame
+      // while the machine arrives.
+      [frameEl, 0.25, 0.6, 0], [unfold("inspect"), 0.4, 0.7, 16], [unfold("stats"), 0.42, 0.72, 28],
+      [unfold("trace"), 0.48, 0.8, 28], [unfold("logs"), 0.55, 0.88, 28],
     ];
+    // The header and label sit above the slot and pass beneath the holding machine on their way up, so
+    // each fades in only once the machine has cleared it, over the room it will have when docked.
+    let above = [unfold("head"), unfold("label")].map((el) => ({ el, bottom: 0, room: 1 }));
 
     // ---- calm focus: one active index shared by the machine, the waterfall and the log tail ----
     let hover: number | null = null, focused: number | null = null, pinned: number | null = null;
@@ -150,7 +161,7 @@ const variant: Variant = {
       on<PointerEvent>(el, "pointerleave", (e) => { if (e.pointerType === "mouse") { hover = null; requestPaint(); } });
       on(el, "click", () => { pinned = pinned === i ? null : i; requestPaint(); });
     };
-    panel.attach(section, bind);
+    panel.attach(section, { bind, scrub, on });
     const machine = createMachine(run, P, summary);
     section.append(machine.svg);
     machine.nodes.forEach((g, i) => {
@@ -185,15 +196,23 @@ const variant: Variant = {
       const dock = dockLayout(n, rel(slot));
       const hero = stage ? heroLayout(run, rel(stage), dock.row[n - 1] === 0, narrow, sr0.width >= 1200) : dock;
       const sr = section.getBoundingClientRect();
-      machine.setLayouts(hero, dock, { w: sr.width, h: sr.height });
       const mean = (ys: number[]) => ys.reduce((a, b) => a + b, 0) / Math.max(1, ys.length);
       const hy = mean(hero.pos.map((p) => p.y)), dy = mean(dock.pos.map((p) => p.y));
       s0 = Math.max(0, hy - window.innerHeight * 0.5);
       dist = Math.max(1, dy - hy);
+      // In the split hero the copy sits beside the machine, so the states only slide sideways (towards
+      // the copy's column) once the copy has scrolled above the machine's top, start arrow included.
+      const top = (L: typeof hero) => Math.min(...L.pos.map((pt, i) => pt.y - L.r[i] * 1.06));
+      const c = rel(copyEl);
+      machine.setLayouts(hero, dock, { w: sr.width, h: sr.height }, Math.max(0, Math.min(0.7, (c.y + c.h - (top(hero) - 64)) / dist)));
+      above = above.map(({ el }) => {
+        const b = rel(el);
+        return { el, bottom: b.y + b.h, room: Math.max(1, top(dock) - (b.y + b.h)) };
+      });
     }
 
     // ---- the one clock ----
-    let t = docked ? P.endT : 0, playing = false, startAt = 0;
+    let t = docked ? P.endT : 0, playing = false, startAt = 0, scrubbed = false;
     let raf = 0, last = 0, visible = true, lastP = -1, heroHtml = "";
     const backdrop = createBackdrop(canvas);
     const toneOfState = (i: number) => (states[i].skipped ? TONES.indexOf("faint") : Math.max(0, TONES.indexOf(HUE[states[i].id] as never)));
@@ -201,12 +220,14 @@ const variant: Variant = {
     function applyUnfold(p: number) {
       if (p === lastP) return;
       lastP = p;
-      for (const [el, a, b, lift] of stages) {
-        const v = smooth(a, b, p);
+      const show = (el: HTMLElement, v: number, lift = 0) => {
         el.style.opacity = `${v}`;
         el.style.transform = lift && v < 1 ? `translateY(${((1 - v) * lift).toFixed(1)}px)` : "";
         el.style.visibility = v < 0.02 ? "hidden" : "";
-      }
+      };
+      for (const [el, a, b, lift] of stages) show(el, smooth(a, b, p), lift);
+      const top = machine.top();
+      for (const { el, bottom, room } of above) show(el, smooth(0, room, top - bottom));
       if (transcript) {
         const v = 1 - smooth(0, 0.3, p);
         transcript.style.opacity = `${v}`;
@@ -219,7 +240,7 @@ const variant: Variant = {
       const p = progress();
       const act = active();
       machine.render(p, t, act);
-      panel.paint(t, act);
+      panel.paint(t, act, scrubbed);
       applyUnfold(p);
 
       const done = t >= P.endT;
@@ -229,9 +250,7 @@ const variant: Variant = {
       }
       if (heroInspect) {
         const ci = cursor(P, t);
-        const html = act !== null || done || ci < 0
-          ? inspectLine(run, act)
-          : `<span class="text-faint">${q(ci)}</span> <span class="text-text">${esc(states[ci].log)}</span>`;
+        const html = act !== null || done || ci < 0 ? inspectLine(run, act) : runningLine(ci);
         if (html !== heroHtml) heroInspect.innerHTML = heroHtml = html;
       }
 
@@ -278,7 +297,17 @@ const variant: Variant = {
       t = 0;
       startAt = performance.now();
       playing = true;
+      scrubbed = false;
       schedule();
+    }
+    // Scrubbing sets the one clock directly and pauses it; replay restarts it.
+    function scrub(reqMs: number) {
+      starter?.disconnect();
+      starter = null;
+      playing = false;
+      scrubbed = true;
+      t = tAtReq(P, reqMs);
+      paint(0); // now, not next frame: the next key press steps from what this one showed
     }
 
     const ro = new ResizeObserver(() => {

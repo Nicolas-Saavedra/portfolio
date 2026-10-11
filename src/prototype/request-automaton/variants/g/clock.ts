@@ -57,6 +57,18 @@ export function reqAt(p: Plan, t: number): number {
   return 0;
 }
 
+/** Inverse of reqAt, for scrubbing: the earliest animation time whose request time reaches r.
+ *  States that took no time take no request time, so scrubbing passes straight through them. */
+export function tAtReq(p: Plan, r: number): number {
+  const n = p.enter.length;
+  if (r >= p.domain) return p.endT;
+  if (r >= p.sum) return p.leave[n - 1] + (SETTLE * (r - p.sum)) / (p.domain - p.sum);
+  for (let i = 0; i < n; i++) {
+    if (p.end[i] > r) return p.enter[i] + ((r - p.start[i]) / (p.end[i] - p.start[i])) * (p.leave[i] - p.enter[i]);
+  }
+  return p.endT;
+}
+
 /** Index of the state the token is in (or just left), -1 before the run starts. */
 export function cursor(p: Plan, t: number): number {
   for (let i = p.enter.length - 1; i >= 0; i--) if (t >= p.enter[i]) return i;
