@@ -1,0 +1,36 @@
+{
+  "name": "portfolio",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "check": "astro check",
+    "prototype": "astro dev --open /prototype/request-automaton"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.3.8",
+    "d3-ease": "^3.0.1",
+    "d3-force": "^3.0.0",
+    "d3-interpolate": "^3.0.1",
+    "d3-scale": "^4.0.2",
+    "d3-selection": "^3.0.0",
+    "d3-shape": "^3.2.0",
+    "d3-timer": "^3.0.1",
+    "d3-transition": "^3.0.1",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@types/d3-ease": "^3.0.2",
+    "@types/d3-force": "^3.0.10",
+    "@types/d3-interpolate": "^3.0.4",
+    "@types/d3-scale": "^4.0.9",
+    "@types/d3-selection": "^3.0.12",
+    "@types/d3-shape": "^3.2.0",
+    "@types/d3-timer": "^3.0.2",
+    "@types/d3-transition": "^3.0.9",
+    "typescript": "^6.0.3"
+  }
+}

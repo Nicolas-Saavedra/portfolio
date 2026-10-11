@@ -1,0 +1,49 @@
+---
+// PROTOTYPE (throwaway, lives only on the prototype/request-automaton branch).
+// Question: what should the Request Automaton look like, from plain to over the top?
+// Four variants of the home hero, switchable via ?variant=A..D and the floating bar (← → keys).
+// ?data=sample (default) shows the labeled example run; ?data=live tries the reader's real request.
+import "../../styles/global.css";
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PROTOTYPE · Request Automaton</title>
+  </head>
+  <body class="min-h-screen bg-bg text-text antialiased">
+    <main id="variant-root"></main>
+    <script>
+      import { collectRun } from "../../prototype/request-automaton/model";
+      import { COPY, type Variant } from "../../prototype/request-automaton/types";
+      import { mountSwitcher } from "../../prototype/request-automaton/switcher";
+
+      const modules = import.meta.glob<{ default: Variant }>("../../prototype/request-automaton/variants/*.ts");
+      const byKey: Record<string, () => Promise<{ default: Variant }>> = {};
+      for (const [path, load] of Object.entries(modules)) {
+        const file = path.split("/").pop()!;
+        byKey[file[0].toUpperCase()] = load;
+      }
+      const keys = Object.keys(byKey).sort();
+      const root = document.getElementById("variant-root")!;
+      const run = await collectRun();
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let cleanup: (() => void) | undefined;
+      const names: Record<string, string> = {};
+
+      async function show(key: string) {
+        cleanup?.();
+        root.replaceChildren();
+        const v = (await byKey[key]()).default;
+        names[key] = v.name;
+        cleanup = v.mount(root, { run, copy: COPY, reducedMotion });
+        console.log("[prototype] variant", key, v.name, "run", run);
+      }
+
+      for (const k of keys) names[k] = (await byKey[k]()).default.name;
+      const initial = new URLSearchParams(location.search).get("variant")?.toUpperCase() ?? keys[0];
+      await show(keys.includes(initial) ? initial : keys[0]);
+      if (import.meta.env.DEV) mountSwitcher(keys, names, initial, show);
+    </script>
+  </body>
+</html>

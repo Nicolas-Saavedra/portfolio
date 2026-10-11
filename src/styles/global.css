@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+/* PROTOTYPE tokens: a softened Catppuccin. Latte by day, Mocha by night, accents used sparingly. */
+:root {
+  --bg: #eff1f5; --surface: #e6e9ef; --border: #ccd0da; --text: #4c4f69; --muted: #6c6f85; --faint: #9ca0b0;
+  --lavender: #7287fd; --mauve: #8839ef; --green: #40a02b; --peach: #fe640b; --sky: #04a5e5; --red: #d20f39;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e2e; --surface: #181825; --border: #313244; --text: #cdd6f4; --muted: #a6adc8; --faint: #6c7086;
+    --lavender: #b4befe; --mauve: #cba6f7; --green: #a6e3a1; --peach: #fab387; --sky: #89dceb; --red: #f38ba8;
+  }
+}
+
+@theme {
+  --color-bg: var(--bg); --color-surface: var(--surface); --color-border: var(--border);
+  --color-text: var(--text); --color-muted: var(--muted); --color-faint: var(--faint);
+  --color-lavender: var(--lavender); --color-mauve: var(--mauve); --color-green: var(--green);
+  --color-peach: var(--peach); --color-sky: var(--sky); --color-red: var(--red);
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html { background: var(--bg); color: var(--text); }
