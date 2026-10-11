@@ -6,7 +6,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "check": "astro check",
-    "prototype": "astro dev --open /prototype/request-automaton"
+    "prototype": "astro dev --open /prototype/request-automaton",
+    "prototype:selected-work": "astro dev --port 4322 --open /prototype/selected-work"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

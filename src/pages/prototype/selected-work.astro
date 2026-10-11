@@ -1,0 +1,128 @@
+---
+// PROTOTYPE (throwaway, lives only on the prototype/selected-work branch).
+// Question: what should Selected Work look like on the home page?
+// Variants of the Selected Work section, switchable via ?variant=A.. and the floating bar (← → keys),
+// mounted in a stub of the home page: the real Request Automaton hero (variant G) above, stub Timeline and contact below.
+// ?otw=1 turns Open to Work on: the Timeline and CV link move between the hero and Selected Work.
+// ?hero=off skips the hero, for quick iteration.
+import "../../styles/global.css";
+import { CASE_STUDIES } from "../../prototype/selected-work/content";
+
+const roles = [
+  ["Engineering", [["Founding Engineer", "Blinka (YC F26)", "Jan 2026 – now"], ["Full Stack Developer", "Universidad de los Andes", "Jan – Jun 2025"], ["Full Stack Developer", "Universidad de los Andes", "Aug – Dec 2024"], ["Research assistant", "Universidad de los Andes", "Aug – Dec 2022"]]],
+  ["Teaching", [["Instructor, Continuing Education", "Universidad de los Andes", "Aug 2025 – now"], ["Programming tutor", "Universidad de los Andes", "Aug 2023 – May 2024"]]],
+] as const;
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PROTOTYPE · Selected Work</title>
+  </head>
+  <body class="min-h-screen bg-bg text-text antialiased">
+    <main id="page" class="flex flex-col">
+      <div id="hero-root" data-order="0"></div>
+      <div id="variant-root" data-order="2"></div>
+
+      <!-- Stub: the Timeline is being prototyped separately. Stand-in only, not part of the question. -->
+      <section id="timeline-stub" data-order="3" aria-labelledby="timeline-stub-title" class="mx-auto w-full max-w-6xl px-4 py-20 sm:px-8">
+        <p class="font-mono text-[11px] text-faint">stub · Timeline, prototyped separately</p>
+        <div data-otw-signal hidden class="mt-4 inline-flex items-center gap-2 rounded-full border border-green px-3 py-1 font-mono text-xs text-green">
+          <span aria-hidden="true">●</span> open to roles
+        </div>
+        <h2 id="timeline-stub-title" class="mt-3 font-serif text-3xl text-text">Timeline</h2>
+        <div class="mt-8 grid gap-10 sm:grid-cols-2">
+          {roles.map(([track, rows]) => (
+            <div>
+              <h3 class="font-mono text-xs text-faint">{track}</h3>
+              <ul class="mt-3 space-y-4">
+                {rows.map(([title, org, when]) => (
+                  <li class="border-l border-border pl-4">
+                    <span class="text-text">{title}</span> <span class="text-muted">· {org}</span>
+                    <span class="block font-mono text-xs text-faint">{when}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <p class="mt-8 text-sm text-muted">Education: Systems and Computing Engineering, Universidad de los Andes, 2020 – 2026.</p>
+        <a href="#cv" class="mt-6 inline-block font-mono text-sm text-lavender underline underline-offset-4">Download CV (PDF)</a>
+      </section>
+
+      <!-- Stub: contact. -->
+      <section id="contact-stub" data-order="4" aria-labelledby="contact-stub-title" class="mx-auto w-full max-w-6xl px-4 pb-48 pt-20 sm:px-8">
+        <p class="font-mono text-[11px] text-faint">stub · contact</p>
+        <h2 id="contact-stub-title" class="mt-3 font-serif text-3xl text-text">Get in touch</h2>
+        <p class="mt-4 text-muted">
+          <a class="text-text underline underline-offset-4" href="#email">email</a> ·
+          <a class="text-text underline underline-offset-4" href="#github">GitHub</a> ·
+          <a class="text-text underline underline-offset-4" href="#linkedin">LinkedIn</a>
+        </p>
+        <p class="mt-16 font-mono text-[11px] text-faint">{CASE_STUDIES.length} Case Studies in the shared content module.</p>
+      </section>
+    </main>
+    <script>
+      import { CASE_STUDIES } from "../../prototype/selected-work/content";
+      import type { Variant } from "../../prototype/selected-work/types";
+      import { mountSwitcher } from "../../prototype/selected-work/switcher";
+
+      const params = new URLSearchParams(location.search);
+      const openToWork = params.get("otw") === "1";
+      const heroOn = params.get("hero") !== "off";
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      // Open to Work moves the Timeline (and its CV link) above Selected Work.
+      const timeline = document.getElementById("timeline-stub")!;
+      if (openToWork) {
+        timeline.dataset.order = "1";
+        timeline.querySelector<HTMLElement>("[data-otw-signal]")!.hidden = false;
+      }
+      for (const el of document.querySelectorAll<HTMLElement>("#page > [data-order]")) el.style.order = el.dataset.order!;
+
+      // The real hero above the section, so variants are judged under it, not in a vacuum.
+      if (heroOn) {
+        const [{ collectRun }, { COPY }, { default: hero }] = await Promise.all([
+          import("../../prototype/request-automaton/model"),
+          import("../../prototype/request-automaton/types"),
+          import("../../prototype/request-automaton/variants/g-scroll-docking"),
+        ]);
+        const heroRoot = document.getElementById("hero-root")!;
+        hero.mount(heroRoot, { run: await collectRun(), copy: COPY, reducedMotion });
+        heroRoot.lastElementChild?.remove(); // G's own filler; the real sections below give it room to scroll
+      }
+
+      const modules = import.meta.glob<{ default: Variant }>("../../prototype/selected-work/variants/*.ts");
+      const byKey: Record<string, () => Promise<{ default: Variant }>> = {};
+      for (const [path, load] of Object.entries(modules)) {
+        const file = path.split("/").pop()!;
+        byKey[file[0].toUpperCase()] = load;
+      }
+      const keys = Object.keys(byKey).sort();
+      const root = document.getElementById("variant-root")!;
+      const work = [...CASE_STUDIES].sort((a, b) => a.order - b.order);
+      let cleanup: (() => void) | undefined;
+      const names: Record<string, string> = {};
+
+      async function show(key: string) {
+        cleanup?.();
+        root.replaceChildren();
+        const v = (await byKey[key]()).default;
+        names[key] = v.name;
+        cleanup = v.mount(root, { work, reducedMotion, openToWork });
+        console.log("[prototype] variant", key, v.name, { openToWork, heroOn, reducedMotion });
+      }
+
+      for (const k of keys) names[k] = (await byKey[k]()).default.name;
+      const asked = params.get("variant")?.toUpperCase() ?? keys[0];
+      const initial = keys.includes(asked) ? asked : keys[0];
+      await show(initial);
+      if (location.hash === "#selected-work") root.scrollIntoView();
+      if (import.meta.env.DEV)
+        mountSwitcher(keys, names, initial, show, [
+          { param: "otw", values: ["0", "1"], label: (v) => `otw: ${v === "1" ? "on" : "off"}` },
+          { param: "hero", values: ["on", "off"], label: (v) => `hero: ${v}` },
+        ]);
+    </script>
+  </body>
+</html>
