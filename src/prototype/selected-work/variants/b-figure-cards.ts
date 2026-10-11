@@ -114,7 +114,7 @@ function card(c: CaseStudy, i: number) {
     ? `<span class="swb-draft"><b>draft</b>${esc(c.draft.reason)}</span>`
     : "";
   const facts = c.facts.map((f) => `<li><span class="v">${esc(f.value)}</span><span class="l">${esc(f.label)}</span></li>`).join("");
-  const ext = c.external ? `<a class="swb-ext" href="${esc(c.external.href)}" rel="noopener">${esc(c.external.label)} ↗</a>` : "";
+  const ext = c.links.map((l) => `<a class="swb-ext" href="${esc(l.href)}" rel="noopener">${esc(l.label)} ↗</a>`).join("");
   return `<li class="swb-card ${SHAPE[c.slug] ?? ""}" style="--accent:var(--${HUE[c.slug] ?? "lavender"})">
   <div class="swb-body">
     <p class="swb-meta"><span class="n">${n}</span><span>${esc(c.org)} · ${esc(c.period.label)}</span>${draft}</p>

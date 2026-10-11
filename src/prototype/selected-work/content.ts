@@ -37,8 +37,8 @@ export interface CaseStudy {
   facts: Fact[];
   /** The Case Study page on this site. */
   href: string;
-  /** An optional outside link (repo, live site). */
-  external?: { label: string; href: string };
+  /** Outside links (repos, live sites), possibly none. */
+  links: { label: string; href: string }[];
   /** Copy not cleared for publishing yet. Show a visible "draft" mark. */
   draft?: { reason: string };
 }
@@ -59,8 +59,12 @@ export const CASE_STUDIES: CaseStudy[] = [
     outcome:
       "Everything Blinka runs ships through one pipeline and one set of dashboards, and the technical groundwork for its new banking division is in place.",
     technologies: ["AWS Lambda", "RDS", "API Gateway", "CloudFront", "CloudWatch", "GitHub Actions", "TypeScript"],
-    facts: [{ value: "1", label: "infrastructure engineer" }],
+    facts: [
+      { value: "300+", label: "PRs I've reviewed" },
+      { value: "300+", label: "PRs of mine merged" },
+    ],
     href: "/work/blinka",
+    links: [],
     draft: { reason: "pending clearance by Blinka's cofounders" },
   },
   {
@@ -80,7 +84,10 @@ export const CASE_STUDIES: CaseStudy[] = [
     technologies: ["Python", "Graph traversal", "d3"],
     facts: [{ value: "200+", label: "students in Lenguajes y Máquinas" }],
     href: "/work/gold-to-mercury",
-    external: { label: "mercury-lib on GitHub", href: "https://github.com/Nicolas-Saavedra/mercury-lib" },
+    links: [
+      { label: "GOLD-python on GitHub", href: "https://github.com/GOLD-Python/GOLD-Python" },
+      { label: "mercury-lib on GitHub", href: "https://github.com/Nicolas-Saavedra/mercury-lib" },
+    ],
   },
   {
     slug: "noestassolx",
@@ -98,10 +105,10 @@ export const CASE_STUDIES: CaseStudy[] = [
     technologies: ["React", "FastAPI", "Docker", "NGINX", "Traefik", "GitHub Actions"],
     facts: [
       { value: "1,000+", label: "first-semester students" },
-      { value: "20+", label: "institutional services" },
-      { value: "6", label: "people on the team" },
+      { value: "20+", label: "institutional services in one place" },
     ],
     href: "/work/noestassolx",
+    links: [],
   },
   {
     slug: "teaching",
@@ -118,8 +125,9 @@ export const CASE_STUDIES: CaseStudy[] = [
     technologies: ["HTML", "CSS", "Git", "Tailwind", "React", "React Query"],
     facts: [
       { value: "150+", label: "students taught, HTML to React" },
-      { value: "40+", label: "students tutored per semester" },
+      { value: "40+", label: "students tutored each semester" },
     ],
     href: "/work/teaching",
+    links: [],
   },
 ];

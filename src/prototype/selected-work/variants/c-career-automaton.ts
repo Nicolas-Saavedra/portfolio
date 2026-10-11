@@ -79,11 +79,9 @@ function readout(c: CaseStudy, i: number): string {
         <p class="mt-5 font-mono text-[11px] leading-5 text-faint">${c.technologies.map(esc).join(" · ")}</p>
         <div class="mt-auto flex flex-wrap items-center gap-x-6 gap-y-2 pt-6">
           <a href="${esc(c.href)}" class="sw-c-link rounded-sm font-medium text-text underline decoration-1 underline-offset-4">Read the Case Study<span class="sr-only">: ${esc(c.title)}</span> <span aria-hidden="true">→</span></a>
-          ${
-            c.external
-              ? `<a href="${esc(c.external.href)}" class="sw-c-link rounded-sm font-mono text-xs text-muted underline decoration-1 underline-offset-4" rel="noopener">${esc(c.external.label)} <span aria-hidden="true">↗</span></a>`
-              : ""
-          }
+          ${c.links
+            .map((l) => `<a href="${esc(l.href)}" class="sw-c-link rounded-sm font-mono text-xs text-muted underline decoration-1 underline-offset-4" rel="noopener">${esc(l.label)} <span aria-hidden="true">↗</span></a>`)
+            .join("")}
         </div>
       </div>
     </article>`;
