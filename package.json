@@ -7,7 +7,9 @@
     "build": "astro build",
     "check": "astro check",
     "prototype": "astro dev --open /prototype/request-automaton",
-    "prototype:selected-work": "astro dev --port 4322 --open /prototype/selected-work"
+    "prototype:selected-work": "astro dev --port 4322 --open /prototype/selected-work",
+    "prototype:timeline": "astro dev --port 4323 --open /prototype/timeline",
+    "prototype:work-history": "astro dev --port 4324 --open /prototype/work-history"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
