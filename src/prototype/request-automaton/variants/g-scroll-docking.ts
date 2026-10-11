@@ -2,7 +2,7 @@
 // reader scrolls the machine shrinks and docks into C's instrument panel, which unfolds around it while
 // the glyph field fades to a texture. Scroll position maps to a 0→1 progress; scrolling stays native.
 import type { Variant } from "../types";
-import { TONES } from "./d/flavor";
+import { TONES } from "./g/flavor";
 import { createBackdrop, type Clearing } from "./g/backdrop";
 import { HUE, cursor, durText, esc, plan, q, reqAt } from "./g/clock";
 import { createMachine, dockLayout, heroLayout, smooth } from "./g/machine";

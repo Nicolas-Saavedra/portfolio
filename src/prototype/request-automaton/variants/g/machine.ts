@@ -3,7 +3,7 @@
 // machine itself travels into the panel rather than being swapped for a copy.
 import { easeCubicInOut } from "d3-ease";
 import type { Run } from "../../model";
-import { radiusOf } from "../d/flavor";
+import { radiusOf } from "./flavor";
 import { type Plan, LEAD, MOVE, clamp, cursor, durText, hue, mix, q } from "./clock";
 
 const NS = "http://www.w3.org/2000/svg";

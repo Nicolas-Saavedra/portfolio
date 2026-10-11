@@ -1,7 +1,7 @@
 // PROTOTYPE: throwaway. Variant D's glyph field as G's backdrop, on a viewport-sized sticky canvas.
 // No particles, wells or shockwaves: the token and a focused state only warm the glyphs near them.
-import { GlyphField, HOT, MONO } from "../d/glyphs";
-import { TONES } from "../d/flavor";
+import { GlyphField, HOT, MONO } from "./glyphs";
+import { TONES } from "./flavor";
 
 export interface Clearing { x: number; y: number; w: number; h: number; grow: number; strength: number }
 
