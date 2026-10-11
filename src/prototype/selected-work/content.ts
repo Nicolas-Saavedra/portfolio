@@ -59,10 +59,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     outcome:
       "Everything Blinka runs ships through one pipeline and one set of dashboards, and the technical groundwork for its new banking division is in place.",
     technologies: ["AWS Lambda", "RDS", "API Gateway", "CloudFront", "CloudWatch", "GitHub Actions", "TypeScript"],
-    facts: [
-      { value: "1", label: "infrastructure engineer" },
-      { value: "every", label: "PR reviewed before it merges" },
-    ],
+    facts: [{ value: "1", label: "infrastructure engineer" }],
     href: "/work/blinka",
     draft: { reason: "pending clearance by Blinka's cofounders" },
   },
