@@ -11,7 +11,7 @@
 // - Phones and tablets: the rail (the whole record, scannable), then the readout slot. The radios live at the top of
 //   the readout slot, so tapping a row focuses its radio and the browser scrolls the readout into view, without JS.
 // - No JS after mount: radios + :has() for selection, scroll-driven animations for the graph's staging.
-import { caseStudyBySlug, caseStudyOf, educationFacts, insideDegree, rolesOf, type CaseStudy, type Fact, type Role, type Span } from "../content";
+import { caseStudyBySlug, caseStudyOf, educationFacts, insideDegree, orgShort, rolesOf, type CaseStudy, type Fact, type Role, type Span } from "../content";
 import type { Variant } from "../types";
 import { DEGREE_CAPTION, FIGURES, degree } from "./b/diagrams";
 import { GRAPH_W, mi, model, type Lane, type Row, type State } from "./b/graph";
@@ -116,9 +116,14 @@ const variant: Variant = {
         <span class="b-l3"><span class="b-when">${when}</span>${tag ? `<span class="b-tag"><span aria-hidden="true">↳ </span>${tag}</span>` : ""}</span>
       </label>`;
     }
+    /** The rail's organization: its short name (content's `orgShort`), with the full name kept for screen readers. */
+    const railOrg = (org: string) => {
+      const short = orgShort(org);
+      return short === org ? esc(org) : `<span aria-hidden="true">${esc(short)}</span><span class="sr-only">${esc(org)}</span>`;
+    };
     /** "context · organization", breaking only before the organization when it doesn't fit on one line. */
     const where = (ctxText: string, org?: string) =>
-      `<span class="b-ctx">${esc(ctxText)}</span>${org ? ` <span class="b-org">· ${esc(org)}</span>` : ""}`;
+      `<span class="b-ctx">${esc(ctxText)}</span>${org ? ` <span class="b-org">· ${railOrg(org)}</span>` : ""}`;
     const whereOf = (r: Role) => where(r.context ?? r.organization, r.context ? r.organization : undefined);
 
     function rowHtml(row: Row, i: number): string {
@@ -146,7 +151,7 @@ const variant: Variant = {
         const cs = caseStudyBySlug(row.cs)!;
         const p = { k: spanKey(cs, row.s), ro: `cs-${cs.slug}`, hue: csHue(cs), story: cs.slug };
         return `<li class="b-row" data-k="${p.k}" data-story="${cs.slug}" data-lane="education" style="--c:${COLOR.education}">${graphCell(lanes, node("education", "span"))}
-          ${label(p, COLOR.education, esc(row.s.label), where("inside the degree", "not a role"), `${time(row.s.start)} → ${until(row.s.end)}${srDur(row.s.start, row.s.end)}`)}</li>`;
+          ${label(p, COLOR.education, esc(row.s.label), `<span class="b-ctx">inside the degree</span> <span class="b-org">· not a role</span>`, `${time(row.s.start)} → ${until(row.s.end)}${srDur(row.s.start, row.s.end)}`)}</li>`;
       }
       const e = row.e;
       const cs = caseStudyOf(e);
@@ -199,6 +204,17 @@ const variant: Variant = {
       </article>`;
     }
 
+    /** The degree's footer, in a Case Study footer's shape: the thesis's English title where the technologies would be,
+     * then its advisor and the repository link (the record is in Spanish). Each fits one line from 1024. */
+    const thesisFoot = (t: NonNullable<typeof edu.thesis>) => `
+          <div class="b-foot">
+            <p class="b-tech">thesis · <cite class="b-cite">${esc(t.title)}</cite></p>
+            <div class="b-links">
+              <span class="b-tech">advised by ${esc(t.advisor)}</span>
+              <a href="${esc(t.href)}" class="b-link b-out" rel="noopener" hreflang="es">${esc(t.label)} <span aria-hidden="true">↗</span></a>
+              <a href="#b-rail" class="b-link b-back">↑ all roles</a>
+            </div>
+          </div>`;
     const hl = (h: string) => `<li><span aria-hidden="true" style="color:var(--hue)">+</span><span>${esc(h)}</span></li>`;
     const back = `<div class="b-foot b-foot-thin"><div class="b-links"><a href="#b-rail" class="b-link b-back">↑ all roles</a></div></div>`;
 
@@ -224,17 +240,17 @@ const variant: Variant = {
 
     /** The degree, in the Case Study frame: the story with what it held (each one a label for that commit's radio, so the
      * trunk links to its stories without retelling them), derived facts, and the trunk figure. Not a Case Study. */
+    /** A role's context only restates its title when it starts with the title's first word ("Programming tutoring" on
+     * "Programming Tutor"); the "inside it" list then shows the title alone. */
+    const restates = (r: Role) => !!r.context && r.context.toLowerCase().startsWith(r.title.toLowerCase().split(" ")[0] + " ");
     function eduReadout(): string {
       const { roles, spans } = insideDegree(edu);
       const held = [
-        ...roles.map((r) => ({ k: r.id, start: r.start, end: r.end, c: COLOR[r.track], t: esc(r.title), w: esc(r.context ?? r.organization) })),
-        ...spans.map(({ cs, span }) => ({
-          k: spanKey(cs, span), start: span.start, end: span.end, c: COLOR.education,
-          t: esc(span.label) + (edu.thesisTitle ? `: <cite>${esc(edu.thesisTitle)}</cite>` : ""), w: "not a role",
-        })),
+        ...roles.map((r) => ({ k: r.id, start: r.start, end: r.end, c: COLOR[r.track], t: esc(r.title), w: restates(r) ? "" : esc(r.context ?? r.organization) })),
+        ...spans.map(({ cs, span }) => ({ k: spanKey(cs, span), start: span.start, end: span.end, c: COLOR.education, t: esc(span.label), w: "not a role" })),
       ].sort((a, b) => mi(a.start) - mi(b.start));
       const list = held
-        .map((h) => `<li><label for="b-r-${h.k}" class="b-held" style="--c:${h.c}"><span class="b-held-dot" aria-hidden="true"></span><span class="b-held-t">${h.t}</span> <span class="b-held-w">· ${h.w}</span></label><span class="sr-only">, ${range(h.start, h.end, ctx.now)}</span></li>`)
+        .map((h) => `<li><label for="b-r-${h.k}" class="b-held" style="--c:${h.c}"><span class="b-held-dot" aria-hidden="true"></span><span class="b-held-t">${h.t}</span>${h.w ? ` <span class="b-held-w">· ${h.w}</span>` : ""}</label><span class="sr-only">, ${range(h.start, h.end, ctx.now)}</span></li>`)
         .join("");
       const forks = tracks.flatMap((t, i) => {
         const at = roles.filter((r) => r.track === t.id).map((r) => mi(r.start)).sort((a, b) => a - b);
@@ -251,7 +267,7 @@ const variant: Variant = {
           ${head(`education · <span style="color:var(--hue)">${esc(edu.level.toLowerCase())}</span>`, `<span>beside the Tracks, not in one</span>`)}
           <div class="b-titles">
             <h3 id="b-h-edu" class="b-h3">${esc(edu.degree)}</h3>
-            <p class="b-sub">${esc(edu.institution)} · ${esc(edu.location)}${edu.focus ? ` · ${esc(edu.focus)}` : ""}</p>
+            <p class="b-sub">${esc(edu.institution)} · ${esc(edu.location)}</p>
             <ol class="b-spans" aria-label="The degree's dates"><li class="b-chip" style="--lit:1"><span class="b-chip-l">${esc(edu.level)}</span><span class="b-dt"> ${range(edu.start, edu.end, ctx.now)}</span></li></ol>
           </div>
           <ol class="b-trace" aria-label="The degree, what it held, after it">
@@ -260,7 +276,7 @@ const variant: Variant = {
             ${step("after it", 2, `<p class="b-steptext">${esc(st.after)}</p>`)}
           </ol>
           <dl class="b-facts">${factsHtml(educationFacts(edu))}</dl>
-          ${back}
+          ${edu.thesis ? thesisFoot(edu.thesis) : back}
         </div>
         <figure class="b-fig"><div class="b-plate">${fig}</div><figcaption>${esc(DEGREE_CAPTION)}</figcaption></figure>
       </article>`;

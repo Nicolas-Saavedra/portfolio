@@ -61,7 +61,8 @@ function blinka(c: CaseStudy) {
   );
 }
 
-/** GOLD-python → mercury-lib as a two-state DFA; only DFAs survive the rebuild. Each state carries its library's short
+/** GOLD-python → mercury-lib as a two-state DFA; only deterministic machines (DFAs, and now transducers) survive the
+ * rebuild (iteration 1b, from the thesis record). Each state carries its library's short
  * name (from `short`, "GOLD → mercury") and, under it, the role Nicolas built it in (from `role`). No years: the rail and
  * the panel header already print the period. */
 function gold(c: CaseStudy) {
@@ -83,7 +84,7 @@ function gold(c: CaseStudy) {
       line(loop(q0.x)), head(q0.x + 16, q0.y - 30, 108),
       text(q0.x, q0.y - 78, "DFA, NFA, ε-NFA", "lb dim", "middle"),
       line(loop(q1.x)), head(q1.x + 16, q1.y - 30, 108),
-      text(q1.x, q1.y - 78, "DFA + d3", "lb dim", "middle"),
+      text(q1.x, q1.y - 78, "DFA, transducer", "lb dim", "middle"),
       `<circle class="nd" cx="${q0.x}" cy="${q0.y}" r="${r}"/>`,
       `<circle class="nd accept" cx="${q1.x}" cy="${q1.y}" r="${r}"/><circle class="nd inner" cx="${q1.x}" cy="${q1.y}" r="${r - 5}"/>`,
       text(q0.x, q0.y + 4, nameA, "lb strong", "middle"),
@@ -153,7 +154,7 @@ function teaching(c: CaseStudy) {
 /** The figure and its caption for each Case Study, keyed by slug. Captions only restate facts from content.ts. */
 export const FIGURES: Record<string, { draw: (c: CaseStudy) => string; caption: (c: CaseStudy) => string }> = {
   blinka: { draw: blinka, caption: () => "A request through Blinka's AWS stack, and the pipeline that ships it." },
-  "gold-to-mercury": { draw: gold, caption: () => "Two libraries as a two-state DFA. Only DFAs survived the rebuild." },
+  "gold-to-mercury": { draw: gold, caption: () => "Two libraries as a two-state DFA. Only deterministic machines survived the rebuild." },
   noestassolx: {
     draw: noes,
     caption: () => "First-semester students reach their services through one hub.",

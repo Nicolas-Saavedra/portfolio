@@ -67,6 +67,7 @@ Iteration 1 added (same scratchpad, prefixed `b1-`):
 - `b1-shot.mjs <w> <scheme> <radioKey|-> <out> [otw] [query]`: checks a radio, removes the switcher **and Astro's dev toolbar** (it otherwise floats over the readout in shots), and shoots `[data-work-history-slot]` (`SEL=` for another element, `MOTION=1` for motion). `b1-shot2.mjs` scrolls the frame in first, so the view gate runs before the wait.
 - `b1-eval.mjs <w> <otw> <scheme> '<js body>'`: evaluates a function body in the page and prints the JSON. Handy for row heights and text widths.
 - `b1-held.mjs <w> [touch]`: clicks or taps each "inside it" label in the degree's readout; prints the radio it checks and `scrollY` before and after.
+- `b1b-names.mjs`: the radios' accessible names (an ARIA snapshot), to check the rail's short organization names still read in full.
 - `b1-fallback.mjs [w]`: `b-fallback.mjs`, shooting only the degree's readout. Note `b-fallback.mjs` and `b-motion.mjs` overwrite round-1 shots (`shots/b-fallback.png`, `shots/b-1440-motion-dark.png`).
 
 If they're gone, the core of the measure is short. In the page, under `reducedMotion: "reduce"`, for each `#b .b-radio`: set `checked = true`, await a frame, and read `[data-work-history-slot]`'s height.
@@ -75,7 +76,7 @@ If they're gone, the core of the measure is short. In the page, under `reducedMo
 
 | Module | Owns |
 | --- | --- |
-| `content.ts` (shared, harness) | The fused content: `ROLES` (D's field names, as `ctx.entries`), `CASE_STUDIES` (H's, as `ctx.work`), `EDUCATION`, `TRACKS`, `CV`, `OPEN_TO_WORK`, `NOW`, plus the join helpers `caseStudyOf(role)`, `rolesOf(cs)`, `roleById`, `caseStudyBySlug`, `monthIndex`, and (iteration 1) `insideDegree(edu)` and `educationFacts(edu)`. Read its header comment: a Role may point at one Case Study (`caseStudy`, a slug), and a Case Study lists its `spans`, each either a Role or not a role at all (the thesis). Iteration 1 added `CaseStudy.page` and the Education readout fields (see [Content model](#content-model-iteration-1)). Otherwise don't edit it from a variant; say what's missing instead. |
+| `content.ts` (shared, harness) | The fused content: `ROLES` (D's field names, as `ctx.entries`), `CASE_STUDIES` (H's, as `ctx.work`), `EDUCATION`, `TRACKS`, `CV`, `OPEN_TO_WORK`, `NOW`, plus the join helpers `caseStudyOf(role)`, `rolesOf(cs)`, `roleById`, `caseStudyBySlug`, `monthIndex`, (iteration 1) `insideDegree(edu)` and `educationFacts(edu)`, and (1b) `ORGANIZATION_SHORT` / `orgShort(name)`. Read its header comment: a Role may point at one Case Study (`caseStudy`, a slug), and a Case Study lists its `spans`, each either a Role or not a role at all (the thesis). Iteration 1 added `CaseStudy.page` and the Education readout fields (see [Content model](#content-model-iteration-1)). Otherwise don't edit it from a variant; say what's missing instead. |
 | `types.ts` (harness) | The `Variant` contract: `mount(root, ctx)` returns a cleanup function. |
 | `switcher.ts`, `stubs.ts` (harness) | The floating bar and the contact stub. |
 | `variants/b-split-graph-rail.ts` | The whole section:<br>• the rail markup (`rowLanes`, `label`, `rowHtml`);<br>• the readouts (`csReadout`, `roleReadout`, `eduReadout`, `otwReadout`);<br>• the hidden radios and the default selection;<br>• `css(picks)`, which generates one selection rule group per commit;<br>• `mount`. `mount` attaches no listeners; cleanup is `section.remove()`. |
@@ -208,7 +209,7 @@ There are no listeners, observers, timers or frames. Everything after `mount` is
 2. **One render per Case Study.** Each Case Study's figure and text exist once in the DOM, however many commits open it. Don't duplicate anything to get a different placement per breakpoint; place the single element with grid.
 3. **CSS only (ADR 0002).** See "No runtime behaviour" above. Adding a listener, observer or frame loop reopens ADR 0002; don't, without asking. The `@supports not selector(:has(*))` fallback must keep working: every readout in normal flow, each framed.
 4. **No number printed twice in one view.** Counts live in `facts` for Case Studies and the degree, and in `highlights` for roles without one.
-   - The degree's facts are **derived** (`educationFacts`), never typed: the number of roles at the university that began during the degree (5), and the number of Case Studies whose first span is one of those roles or a span inside the degree (3). Hand-entered facts (`Education.facts`) come after them. Its copy, figure and caption carry no counts.
+   - The degree's facts are **derived** (`educationFacts`), never typed: the number of roles at the university that began during the degree (5). (Iteration 1 also counted "3 Case Studies that began at the university"; 1b dropped it, because it counts the page itself.) Hand-entered facts (none, per Nicolas) (`Education.facts`) come after them. Its copy, figure and caption carry no counts.
    - The rail prints **no counts** at all, only dates.
    - The figures draw counts but never print them, as in H: any number a figure uses comes from `facts` via `fact()`.
    - Only Portafolio's readout shows role highlights. Blinka's, NoEstasSolx's, the tutor's, the instructor's and research's highlights aren't shown anywhere in B. The Teaching facts (150+, 40+) and the GOLD fact (200+) say the same counts, so showing both would print them twice. See Known issues.
@@ -230,7 +231,7 @@ There are no listeners, observers, timers or frames. Everything after `mount` is
    - Every vertical pixel of `#b-rail` is a `.b-row` that paints the lanes.
    - Rows have no margins and the list has no gap; spacing is padding inside the label (`10px 12px 12px` from 640, `8px 12px 10px` below) or the thin line (top padding 12 px from 640, 10 px below).
    - Any new element in the rail must be a `.b-row` with lanes.
-10. **The same organization never becomes a heading.** A row's line 1 is its own title. Line 2 leads with `context` (or the organization if there's none) in the lane colour, then the organization. Line 2 breaks **only between** the two (`.b-ctx` and `.b-org` are each `nowrap`, with the break opportunity, a plain space, between them), so a wrapped row reads "Continuing Education / · Universidad de los Andes", never "Continuing / Education".
+10. **The same organization never becomes a heading.** A row's line 1 is its own title. Since 1b the rail prints the organization's short name (`orgShort`: "Uniandes"), visible text `aria-hidden` with the full name `sr-only` beside it, so radios are still named "… · Universidad de los Andes" (`b1b-names.mjs`). Readouts keep the full name. Line 2 leads with `context` (or the organization if there's none) in the lane colour, then the organization. Line 2 breaks **only between** the two (`.b-ctx` and `.b-org` are each `nowrap`, with the break opportunity, a plain space, between them), so a wrapped row reads "Continuing Education / · Universidad de los Andes", never "Continuing / Education".
 11. **Hover never changes layout.**
     - Calm focus only touches `background-color` (label), `scale` and `box-shadow` (node), and `opacity` (other lanes).
     - **Check:** hover every row at 360 and 1440; the section and rail heights must not change (`b-kbd.mjs`).
@@ -295,7 +296,7 @@ There are no listeners, observers, timers or frames. Everything after `mount` is
 - **Rail column `clamp(22rem, 2rem + 29vw, 24.5rem)` from 1024** (iteration 1; was 21 rem). The text column is the rail minus 48 (graph) − 10 (gap) − 24 (label padding).
   - **24.5 rem (392 px) from about 1240**, so his 1243 window gets the full width. The text column is then 310 px, and the widest line 2, "Programming tutoring · Universidad de los Andes", is 305 px at 13 px. Every row is three lines.
   - **22 rem (352 px) at 1024**: a 270 px text column. Instructor and Programming Tutor wrap their line 2 deliberately (invariant 10). Going wider at 1024 would cost the readout: its frame is 580 px there, and the trace is the tallest part.
-  - Measured `.b-l2` natural widths at 13 px: Uniandes 156, Blinka 91, Instructor 298, thesis 177, NoEstasSolx 240, Portafolio 225, Tutor 305, GOLD-python 248.
+  - Measured `.b-l2` natural widths at 13 px with the full name: Uniandes 156, Blinka 91, Instructor 298, thesis 177, NoEstasSolx 240, Portafolio 225, Tutor 305, GOLD-python 248. Since 1b ("Uniandes" on the rail) none wraps, at 1024 or at 360; the widest is about 205 px. The 24.5 rem width is now only for air.
 - **Gap between rail and readout** is `clamp(1.75rem, 3.2vw − .5rem, 2.5rem)`.
 - **The frame's figure column is 20 rem from 640**, with the facts beside it in `1fr`. That keeps H's figures at about 1:1 (they're 272–318 viewBox units wide), so SVG labels stay about 11 px. It replaces H's 19 rem evidence column at 1280+.
 - **Frame `max-height: 56.25rem` from 1024.** See [The layout](#the-layout).
@@ -325,10 +326,12 @@ There are no listeners, observers, timers or frames. Everything after `mount` is
 - **The fork curve** is 34 px tall, `viewBox 0 0 64 34`, so it ends well inside the shortest (90 px) row.
 
 ### The degree's readout and figure (iteration 1)
-- **Titles:** the full degree name as the `h3`, then institution · location (· `focus` once set), then a one-chip strip ("Bachelor's", dates `sr-only` from 1024) so its titles block matches a Case Study's and the trace starts at the same height.
+- **Titles:** the full degree name as the `h3`, then institution · location, then a one-chip strip ("Bachelor's", dates `sr-only` from 1024) so its titles block matches a Case Study's and the trace starts at the same height.
 - **Trace:** "the degree" (`story.degree`), "inside it" (the derived list), "after it" (`story.after`). The list is one column below 640 and two from 640, filled column-first (`grid-auto-flow: column`, `--rows` = half the items, rounded up). Each item is a coloured dot (its Track's colour, sky for the thesis), the title and the context, each `nowrap`. Dates are `sr-only` at every width: the list was two lines per item with them, and the degree's trace then set the slot on phones and tablets (519 against 417 at 360). Selecting the item shows its dates.
 - **Figure (`degree()`):** 304 × 172, left to right in time: the trunk from the degree's first month (x 14) to the month after its last (x 188), each Track forking off at its first held role (Engineering up, Teaching down, 56 px off the trunk), a 4 px dot per held role on its branch, a hollow ring on the trunk per non-role span (the thesis), a diamond at the end, and both branches running on past the end with an arrowhead and the Track's name in the Track's colour. Nothing but names is printed. Draw-in, dot fades and comets use H's classes, so the existing motion rules run it.
-- **Facts:** two derived counts (invariant 4). Two, not three ("2 Tracks forked off it" was considered), so the facts stay one row on phones; the figure and caption already say the Tracks forked off.
+- **Facts:** one derived count since 1b (invariant 4).
+- **Foot (1b):** a Case Study footer's shape. Line 1 (where the technologies go) is "thesis · <English title>", one line from 640. Line 2 holds "advised by Silvia Takahashi Rodríguez" and the outside link "Uniandes record (Spanish) ↗" (`hreflang="es"`), one line from 1024. The title and advisor on one line made it two lines and the tallest foot (79 against 59), so they were split. On phones it's still the tallest foot (129 against GOLD's 107).
+- **"Inside it" items** show the title alone when the context restates it (`restates`: the context starts with the title's first word, as "Programming tutoring" on "Programming Tutor"), so every item is one line at 1243 and 1440.
 
 ### Readout
 - Mostly H's type: trace 14 px / 1.55; title 1.375 rem (1.5 rem from 1024); facts mono 1.125 rem with labels at 12 px. (The 14.5 / 1.6 trace from 1280 went with the E layout.)
@@ -354,13 +357,13 @@ There are no listeners, observers, timers or frames. Everything after `mount` is
 
 Measured on `[data-work-history-slot]`, hero off, headless Chromium (overlay scrollbars), reduced motion. Every commit gives the same height (invariant 1). "H + D" is the two baselines stacked, as they stood before the fusion (H at h1, D at iteration 1).
 
-| Width | Baseline | **Iteration 1** | Baseline `otw=1` | **Iteration 1 `otw=1`** | Rail (otw) | Readout frame (otw) | H + D |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 360 | 2,307 | **2,442** | 2,423 | **2,570** | 879 (965) | 1,200 | 4,026 |
-| 768 | 1,806 | **1,916** | 1,880 | **2,006** | 794 (884) | 802 | 3,312 |
-| 1024 | 1,145 | **1,139** | 1,145 | **1,219** | 832 (922) | 842 (900, capped) | 873 + not measured |
-| 1243 | 1,079 | **1,091** | 1,085 | **1,181** | 794 (884) | 794 (884; set by the rail) | |
-| 1440 | 1,011 | **1,091** | 1,085 | **1,181** | 794 (884) | 794 (884; set by the rail) | 815 + 1,752 = 2,567 |
+| Width | Baseline | Iteration 1 | **1b** | Baseline `otw=1` | Iteration 1 `otw=1` | **1b `otw=1`** | Rail 1b (otw) | Readout frame 1b (otw) | H + D |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 360 | 2,307 | 2,442 | **2,431** | 2,423 | 2,570 | **2,559** | 822 (908) | 1,246 | 4,026 |
+| 768 | 1,806 | 1,916 | **1,918** | 1,880 | 2,006 | **2,008** | 794 (884) | 804 | 3,312 |
+| 1024 | 1,145 | 1,139 | **1,139** | 1,145 | 1,219 | **1,181** | 794 (884) | 842 (884) | 873 + not measured |
+| 1243 | 1,079 | 1,091 | **1,091** | 1,085 | 1,181 | **1,181** | 794 (884) | 794 (884; set by the rail) | |
+| 1440 | 1,011 | 1,091 | **1,091** | 1,085 | 1,181 | **1,181** | 794 (884) | 794 (884; set by the rail) | 815 + 1,752 = 2,567 |
 
 At 1440 iteration 1 is 42 % of H + D (46 % with Open to Work).
 
@@ -368,7 +371,8 @@ What sets each row (from `b-rows.mjs`):
 - **1243 and 1440 (same layout):** the rail (794) sets the frame. The readout's natural height is about 760: head 43, titles 86, trace 244–250 (the degree's is the tallest by 6 px), figure 233–244 with the facts beside it, foot 59 (GOLD's two outside links).
 - **1024:** the readout sets the frame (842): titles 107 (Teaching's three-line role line), trace 287 (GOLD), figure 244 (GOLD), foot 61. With Open to Work the rail is 922 and the frame stops at 900.
 - **768:** the frame is 802: titles 112 (GOLD), trace 244, figure 244, foot 59.
-- **360:** the frame is 1,200: head 85 (Blinka's draft mark wraps), titles 200 (GOLD and Teaching), figure 230, trace 417 (Blinka, GOLD, NoEstasSolx; the degree's is 369), facts 71, foot 83 (GOLD). Dropping the page link shortened every foot (GOLD's was 113), which is why the phone frame shrank by 30 px even though the degree's readout is new.
+- **360:** the frame is 1,246 (1b): head 85 (Blinka's draft mark wraps), titles 200 (GOLD and Teaching), figure 230, trace 417 (Blinka, GOLD, NoEstasSolx; the degree's is 348), facts 71, foot 129 (the degree's thesis footer; GOLD's, with three links, is 107). In iteration 1 it was 1,200 with an 83 px foot.
+- **1b and the rail:** "Uniandes" ended every line-2 wrap, so the rail is 794 at 1024 too (was 832), and 822 at 360 (was 879). That paid for the taller phone foot, and with Open to Work at 1024 the frame no longer reaches the 900 cap.
 
 **Levers left:**
 - Blinka's phone draft header could fit on one line (−20 px at 360).
@@ -413,12 +417,12 @@ What sets each row (from `b-rows.mjs`):
    - It's worst on a phone with Open to Work: the default readout is a short summary in a frame about 1,230 px tall.
    - Options: don't reserve for non-Case-Study readouts on phones (this breaks invariant 1 there), or drop the Open to Work readout on phones, since the header pill and the `next` row already say it.
 2. **The titles row reserves for the tallest title block** (Teaching's role line plus two chips at 1024; GOLD's and Teaching's at 360). That leaves a 20–100 px gap between a single-chip readout's chip and its trace at 1024 and on phones. At 1243 and 1440 it's gone: every titles block is 86 px there.
-3. **Line 2 wraps on Instructor and Programming Tutor below about 1240** (and on most Uniandes rows on phones). It wraps deliberately, between context and organization, so the second line starts "· Universidad de los Andes". The leading "·" on its own line is the one oddity. The organization is kept (invariant 10) rather than truncated.
+3. **Line 2 no longer wraps anywhere measured** (1b: "Uniandes"). The deliberate break between context and organization is still there for longer names; the leading "·" on its own line would be its one oddity.
 4. **Role highlights are mostly unreachable.**
    - Only Portafolio's readout shows its highlights.
    - The other roles' highlights aren't shown anywhere: the Case Study readout shows the story and `facts` instead (invariant 4).
    - Several of those highlights are soft lines a Recruiter might want, for example "Review and approve every PR the team ships". Count-free ones could appear in the Case Study readout without breaking the no-number-twice rule.
-5. **The degree's readout has no facts beyond derived counts.** The LinkedIn export's Education entry is only the institution, the degree and the dates. A thesis title, an advisor, a focus area or distinctions would make it richer; `Education.thesisTitle`, `focus` and `facts` are ready for them. Its copy (`story`) is a first draft nobody has reviewed, and isn't marked as one.
+5. **The degree has one fact** (5 roles). Nicolas has no distinctions to add for now, and the degree had no emphasis or minor. Its copy (`story`) is confirmed by Nicolas. The thesis's English title is our rendering of the Spanish original; both are in `content.ts`.
 6. **Screen readers hear each role twice.** The rail list reads as text, and each radio is named by the same row's title and "where" (`aria-labelledby`). Nobody has done a real screen-reader pass. `display: contents` semantics on `article.b-ro` rely on current browsers, as in H.
 7. **The phone tap-to-readout scroll is unverified outside Chromium.** If iOS Safari doesn't focus radios on label taps, the fix is one `change` listener calling `scrollIntoView` on the frame below 1024, about 150 bytes gzipped. That would reopen ADR 0002; ask first.
 8. **Copy that isn't from `content.ts`** (UI words, not facts):
@@ -426,7 +430,8 @@ What sets each row (from `b-rows.mjs`):
    - the key's "↳ opens in depth" (was "opens a Case Study"; the degree's row has a tag too now);
    - "inside the degree · not a role";
    - the degree's header "education · bachelor's" and "beside the Tracks, not in one", and its step labels "the degree", "inside it", "after it";
-   - `DEGREE_CAPTION` ("The degree as the trunk. Both Tracks forked off it, and the thesis sits on it.") and the fact labels in `educationFacts` (those two are in content-adjacent code, not markup);
+   - `DEGREE_CAPTION` ("The degree as the trunk. Both Tracks forked off it, and the thesis sits on it.") and the fact label in `educationFacts` (those two are in content-adjacent code, not markup);
+   - the degree footer's "thesis ·" and "advised by";
    - the Open to Work line "Every role and my degree are on the graph. Select one for its story; the CV has all of it.";
    - "no Case Study";
    - "↑ all roles".
@@ -434,7 +439,7 @@ What sets each row (from `b-rows.mjs`):
 9. **The git jokes** (HEAD, "uncommitted", the `$ git log` kicker, "commit") are D's. They may not land with a Recruiter; the plain words beside them carry the meaning.
 10. **Firefox and Safari support** for `animation-timeline`, style queries and `calc()` inside `color-mix()` is unverified. Without them, the rail is simply drawn, the readout motion runs on load, and the state tints may vanish. Nothing is left hidden.
 11. **Two Tracks are assumed** (D's known issue 3). The lane positions are "second Track, trunk, first Track". The degree's figure also assumes two: the first forks up, the rest down.
-12. **The degree's held list depends on `organization` matching `institution` exactly** ("Universidad de los Andes"). A role recorded as "Uniandes" or "University of the Andes" (the LinkedIn export uses both spellings) would silently drop out of the list and the count.
+12. **The degree's held list and the rail's "Uniandes" both depend on `organization` matching exactly** ("Universidad de los Andes", the `ORGANIZATION_SHORT` key and `EDUCATION.institution`). A role recorded as "Uniandes" or "University of the Andes" (the LinkedIn export uses both spellings) would silently drop out of the list and the count.
 13. **Hard cap on the frame.** `max-height: 56.25rem` assumes the readout's natural height stays under 900 px from 1024. If a longer readout lands (a third outside link, a longer trace), it would overflow the frame's border instead of growing it. `b-rows.mjs` at 1024 shows the margin (842 today).
 
 ## Iteration 1: room to breathe, pages optional, the Bachelor's
@@ -468,18 +473,33 @@ Nicolas's verdict on round 1: "B feels nice. I'd give it the left bit more room 
   - a third fact, "2 Tracks forked off it";
   - lighting the held rows in the rail while the degree is selected: it would read like the Case Study story bar, which means "same story".
 
+### Iteration 1b: Nicolas's answers
+
+He answered the six questions: the thesis record (Uniandes repository, https://hdl.handle.net/1992/77403); no focus area; no hand-entered facts; the draft copy is right; "Uniandes" is fine on the rail; and drop the "3 Case Studies" fact, which counts the page itself.
+- **Rail:** line 2 prints "Uniandes" through `orgShort` (content), with the full name for screen readers. Nothing wraps on line 2 at 1024 or 360 now.
+- **Degree:** `focus` and its rendering path are gone. `thesisTitle` became `thesis { title, original, advisor, href, label }`, shown in the degree's footer. One fact. "Programming Tutor · Programming tutoring" became "Programming Tutor" in the "inside it" list.
+- **GOLD → mercury,** corrected against the thesis (it covers DFAs and deterministic transducers, replaces GOLD-3, has Sphinx docs and a simple GUI):
+  - `problem`, `did`, the figure's "DFA + d3" label (now "DFA, transducer") and its caption;
+  - a third outside link, "Thesis at Uniandes".
+  - The `did` was cut to stay at three lines at 1243 ("building and" and "between them" went), so the trace didn't grow its slot.
+- **Not changed:** the thesis span stays Feb – May 2025 (commit history). The repository's issue date, 2025-11-04, is publication, and is noted in `Education.thesis`'s doc comment.
+- **Tried and dropped:**
+  - "Thesis record at Uniandes (Spanish)" plus the advisor on the footer's first line: two lines, the tallest foot;
+  - "mercury-lib thesis at Uniandes" as GOLD's link label: three links wrapped to two rows at 1243.
+
 ### Content model (iteration 1)
 
 Proposed for the spec:
 - `CaseStudy.page?: boolean`: whether the Case Study has its own page at `href`. Default off; without it, the home page's readout is the whole Case Study.
 - `Education.level`, `Education.field`: the degree's two halves ("Bachelor's", "Systems and Computing Engineering"); `degree` stays the full name from the export.
 - `Education.story: { degree, after }`: the readout's copy, first person.
-- `Education.facts?: Fact[]`: hand-entered counts, after the derived ones. None yet.
-- `Education.thesisTitle?`, `Education.focus?`: optional, unset; each renders once set.
+- `Education.facts?: Fact[]`: hand-entered counts, after the derived ones. None.
+- `Education.thesis?: { title, original, advisor, href, label }` (1b, replacing `thesisTitle` and `focus`): the thesis record, English title plus the exact Spanish one.
+- `ORGANIZATION_SHORT` / `orgShort(name)` (1b): short organization names for tight spaces.
 - `insideDegree(edu)`, `educationFacts(edu)`: derived, not typed.
 
 ## Next
 
-- **Questions for Nicolas** (see the iteration-1 report): the thesis's formal title and advisor, a focus area, any distinctions, whether "Uniandes" is acceptable on the rail (it would end every line-2 wrap), and whether the degree's draft copy reads right.
+- **Copy to confirm** (1b): the corrected GOLD → mercury `problem` and `did`, the figure caption, the thesis's English title, and whether "Sphinx" belongs in GOLD → mercury's technologies (not added: it's a fact change).
 - **Pages:** when a Case Study gets a page, flip its `page`. With a page link and two outside links in one footer (GOLD), re-measure the foot row.
 - **Phones:** the reserved slot is 1,200 px for readouts as short as Portafolio's (Known issue 1). Still open.

@@ -1,7 +1,9 @@
 // PROTOTYPE: throwaway. The fused content for the Selected Work × Timeline section, shared by every variant so they
 // differ in design, not in facts. Reconciled from `selected-work/content.ts` (H's Case Studies, verbatim) and
 // `timeline/data.ts` (D's roles, verbatim), so H's and D's helper code can be copied over with little change.
-// Facts come from the LinkedIn export and the spec (issue #1); the thesis dates come from mercury-lib's commit history.
+// Facts come from the LinkedIn export and the spec (issue #1); the thesis dates come from mercury-lib's commit history,
+// and its title, advisor, link and scope (deterministic automata and transducers, replacing GOLD-3) from its record in the
+// Uniandes repository.
 // Copy is a first draft for Nicolas to edit: English, first person, hard counts only, no percentages, no certifications.
 //
 // The join: a Role may point at one Case Study (`caseStudy`, a slug), and a Case Study lists its `spans` in time order.
@@ -18,6 +20,18 @@ export type TrackId = "engineering" | "teaching";
 
 /** "YYYY-MM". */
 export type YearMonth = `${number}-${string}`;
+
+// ── Organizations ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Short names for tight spaces (the rail's line 2), keyed by the full name. Readouts and screen readers keep the full name. */
+export const ORGANIZATION_SHORT: Record<string, string> = {
+  "Universidad de los Andes": "Uniandes",
+};
+/** An organization's short name, or its full name if it has none. */
+export const orgShort = (name: string): string => ORGANIZATION_SHORT[name] ?? name;
+
+/** The mercury-lib thesis's record in the Uniandes repository (Case Study links and the degree's readout share it). */
+const THESIS_HREF = "https://hdl.handle.net/1992/77403";
 
 // ── Timeline: Tracks, Roles, Education ─────────────────────────────────────────────────────────────────────────
 
@@ -161,12 +175,14 @@ export interface Education {
    * copy; they're derived (`educationFacts`).
    */
   story: { degree: string; after: string };
-  /** Hard counts only Nicolas can supply (a distinction, say), shown after the derived ones. None yet. */
+  /** Hard counts only Nicolas can supply (a distinction, say), shown after the derived ones. None for now. */
   facts?: Fact[];
-  /** The thesis's formal title, if it has one beyond "mercury-lib". Shown beside the thesis in the readout once set. */
-  thesisTitle?: string;
-  /** A focus area or specialization, if the degree had one. Shown under the degree's name once set. */
-  focus?: string;
+  /**
+   * The thesis's record, from the Uniandes repository (`dc.*` fields). `title` is an English rendering for the
+   * English-only site; `original` is the exact Spanish title. The repository's issue date (2025-11-04) is the
+   * publication date; the work itself is the Feb – May 2025 span on the GOLD → mercury Case Study (commit history).
+   */
+  thesis?: { title: string; original: string; advisor: string; href: string; label: string };
 }
 
 export const EDUCATION: Education = {
@@ -180,6 +196,13 @@ export const EDUCATION: Education = {
   story: {
     degree: "My engineering degree. Both Tracks on this page began here, as jobs I took at the university while I studied.",
     after: "I finished it while already at Blinka. Both Tracks carry on past it.",
+  },
+  thesis: {
+    title: "Mercury: a library for building deterministic automata in education",
+    original: "Mercury: Librería para el desarrollo de autómatas determinísticos en ambientes educativos",
+    advisor: "Silvia Takahashi Rodríguez",
+    href: THESIS_HREF,
+    label: "Uniandes record (Spanish)",
   },
 };
 
@@ -285,8 +308,8 @@ export const CASE_STUDIES: CaseStudy[] = [
     ],
     summary: "An automata library I wrote for 200+ students as a research assistant, rebuilt years later as my thesis library.",
     problem:
-      "Students in Lenguajes y Máquinas proved things about automata on paper but had no hands-on way to build one and watch it run.",
-    did: "As a research assistant I wrote GOLD-python, an open-source library for building and simulating DFAs, NFAs and ε-NFAs, with union and conversion between them. For my thesis I rebuilt the idea as mercury-lib: DFAs, with a d3 visualizer.",
+      "Lenguajes y Máquinas taught automata with GOLD-3: a tool on obsolete Java, with its own editor and docs that were hard to find.",
+    did: "As a research assistant I wrote GOLD-python, an open-source library for simulating DFAs, NFAs and ε-NFAs, with union and conversion. My thesis rebuilt it as mercury-lib, GOLD-3's replacement: DFAs and deterministic transducers, with Sphinx docs and a d3 visualizer.",
     outcome:
       "Students in the course built and ran their own automata with GOLD-python. mercury-lib's renderer is the ancestor of the automaton at the top of this page.",
     technologies: ["Python", "Graph traversal", "d3"],
@@ -295,6 +318,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     links: [
       { label: "GOLD-python on GitHub", href: "https://github.com/GOLD-Python/GOLD-Python" },
       { label: "mercury-lib on GitHub", href: "https://github.com/Nicolas-Saavedra/mercury-lib" },
+      { label: "Thesis at Uniandes", href: THESIS_HREF },
     ],
   },
   {
@@ -393,15 +417,6 @@ export function insideDegree(edu: Education = EDUCATION) {
 
 /** The degree's facts: counts derived from the data (never typed in), then any Nicolas adds by hand (`facts`). */
 export function educationFacts(edu: Education = EDUCATION): Fact[] {
-  const { roles, spans } = insideDegree(edu);
-  const held = new Set(roles.map((r) => r.id));
-  const began = CASE_STUDIES.filter((cs) => {
-    const first = cs.spans[0];
-    return first.role ? held.has(first.role) : spans.some((s) => s.span === first);
-  });
-  return [
-    { value: String(roles.length), label: "roles at the university, begun while I studied" },
-    { value: String(began.length), label: "Case Studies that began at the university" },
-    ...(edu.facts ?? []),
-  ];
+  const { roles } = insideDegree(edu);
+  return [{ value: String(roles.length), label: "roles at the university, begun while I studied" }, ...(edu.facts ?? [])];
 }

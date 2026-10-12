@@ -149,6 +149,7 @@ ${MD}{#b .b-radios{position:fixed;top:50%;height:1px}}
 #b .b-list li + li{margin-top:.25rem}
 #b .b-faint{font-family:${MONO};font-size:11.5px;color:var(--faint);white-space:nowrap}
 #b .b-tech{font-family:${MONO};font-size:11px;line-height:1.25rem;color:var(--faint)}
+#b .b-cite{font-style:normal;color:var(--muted)}
 #b .b-links{display:flex;flex-wrap:wrap;align-items:center;column-gap:1.5rem;row-gap:.375rem;margin-top:.5rem}
 #b .b-foot-thin .b-links{margin-top:0}
 #b .b-link{border-radius:2px;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
