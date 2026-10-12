@@ -1,0 +1,99 @@
+---
+// PROTOTYPE (throwaway, lives only on the prototype/work-history branch).
+// Question: what should contact look like? Three mellow variants, switchable via ?variant=A|B|C and the floating bar
+// (← → keys), mounted at the foot of a stub of the home page: the real Request Automaton hero (variant G), then the
+// locked work section (B, rendered as-is), then contact. ?otw=1 turns Open to Work on for both sections.
+// ?hero=docked (default) | live | off.
+import "../../styles/global.css";
+
+// The build date, for B's colophon. Computed here, so on the real site it's fixed at build time.
+const d = new Date();
+const builtAt = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PROTOTYPE · Contact</title>
+  </head>
+  <body class="min-h-screen bg-bg text-text antialiased">
+    <main id="page" data-built-at={builtAt}></main>
+    <script>
+      import hero from "../../prototype/request-automaton/variants/g-scroll-docking";
+      import { EXAMPLE_RUN } from "../../prototype/request-automaton/model";
+      import { COPY } from "../../prototype/request-automaton/types";
+      import work from "../../prototype/work-history/variants/b-split-graph-rail";
+      import { CASE_STUDIES, CV, EDUCATION, NOW, OPEN_TO_WORK, ROLES, TRACKS } from "../../prototype/work-history/content";
+      import { mountSwitcher } from "../../prototype/work-history/switcher";
+      import { CONTACT } from "../../prototype/contact/content";
+      import type { Variant } from "../../prototype/contact/types";
+
+      const modules = import.meta.glob<{ default: Variant }>("../../prototype/contact/variants/*.ts");
+      const byKey: Record<string, () => Promise<{ default: Variant }>> = {};
+      for (const [path, load] of Object.entries(modules)) {
+        const file = path.split("/").pop()!;
+        byKey[file[0].toUpperCase()] = load;
+      }
+      const keys = Object.keys(byKey).sort();
+      const params = new URLSearchParams(location.search);
+      const openToWork = params.get("otw") === "1";
+      const heroMode = params.get("hero") ?? "docked";
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const page = document.getElementById("page")!;
+      const builtAt = page.dataset.builtAt!;
+
+      // The hero: G as it stands ("docked" is its reduced-motion form; "live" runs the scroll-docking).
+      const heroRoot = document.createElement("div");
+      if (heroMode !== "off") {
+        hero.mount(heroRoot, { run: EXAMPLE_RUN, copy: COPY, reducedMotion: heroMode === "docked" || reducedMotion });
+        heroRoot.lastElementChild?.remove(); // G's own "prototype filler" below the hero
+      }
+
+      // The work section: the locked B, as-is.
+      const workRoot = document.createElement("div");
+      workRoot.setAttribute("data-work-history-slot", "");
+      work.mount(workRoot, {
+        entries: ROLES,
+        work: [...CASE_STUDIES].sort((a, b) => a.order - b.order),
+        education: EDUCATION,
+        tracks: TRACKS,
+        cv: CV,
+        now: NOW,
+        openToWork,
+        openToWorkCopy: OPEN_TO_WORK,
+        reducedMotion,
+      });
+
+      const slot = document.createElement("div");
+      slot.id = "variant-root";
+      slot.setAttribute("data-contact-slot", "");
+      // Room for the floating switcher, so it never covers the page's last line. Harness only.
+      const spacer = document.createElement("div");
+      spacer.setAttribute("data-prototype-spacer", "");
+      spacer.style.height = import.meta.env.DEV ? "72px" : "0";
+      page.append(heroRoot, workRoot, slot, spacer);
+
+      let cleanup: (() => void) | undefined;
+      const names: Record<string, string> = {};
+      async function show(key: string) {
+        cleanup?.();
+        slot.replaceChildren();
+        const v = (await byKey[key]()).default;
+        names[key] = v.name;
+        cleanup = v.mount(slot, { contact: CONTACT, openToWork, builtAt, reducedMotion });
+        console.log("[prototype] contact variant", key, v.name, { openToWork, heroMode, reducedMotion, builtAt });
+      }
+
+      for (const k of keys) names[k] = (await byKey[k]()).default.name;
+      const asked = params.get("variant")?.toUpperCase() ?? keys[0];
+      const initial = keys.includes(asked) ? asked : keys[0];
+      await show(initial);
+      if (location.hash === "#contact") slot.scrollIntoView();
+      if (import.meta.env.DEV)
+        mountSwitcher(keys, names, initial, show, [
+          { param: "otw", values: ["0", "1"], label: (v) => `otw: ${v === "1" ? "on" : "off"}` },
+          { param: "hero", values: ["docked", "live", "off"], label: (v) => `hero: ${v}` },
+        ]);
+    </script>
+  </body>
+</html>

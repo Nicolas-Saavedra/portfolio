@@ -9,7 +9,8 @@
     "prototype": "astro dev --open /prototype/request-automaton",
     "prototype:selected-work": "astro dev --port 4322 --open /prototype/selected-work",
     "prototype:timeline": "astro dev --port 4323 --open /prototype/timeline",
-    "prototype:work-history": "astro dev --port 4324 --open /prototype/work-history"
+    "prototype:work-history": "astro dev --port 4324 --open /prototype/work-history",
+    "prototype:contact": "astro dev --port 4325 --ignore-lock --open /prototype/contact"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
