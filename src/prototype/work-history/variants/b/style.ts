@@ -3,21 +3,22 @@
 // on the real site both would be one static stylesheet.
 //
 // The readout frame is one grid at every width, so every readout's parts land in the same cells (H's reservation):
-//   below XL (one column):  pad | body | pad
-//                           rows head / titles / fig / main / facts / slack (1fr) / foot / end
-//   from XL (H's E layout): pad | trace 1fr | 1.75rem | evidence 19rem | pad
-//                           rows head / titles / main / facts / slack (1fr) / foot / end
-// A Case Study puts its figure in `fig`, its trace in `main` and its facts in `facts`. A role readout's text
-// (`.b-rwrap`) spans fig → slack instead, so it starts where the figure would and its excess lands in `slack`.
+//   below 640:  pad | body | pad
+//               rows head / titles / fig / main / facts / slack (1fr) / foot / end
+//   from 640:   pad | figure 20rem | 1.5rem | facts 1fr | pad
+//               rows head / titles / main / fig / slack (1fr) / foot / end
+// (H's trace | evidence split from 1280 is gone since iteration 1: with the wider rail, the section's 1,088 px content
+// width leaves the frame 656 px at most, and the split squeezed the trace to about 276 px.)
+// A Case Study (or the degree) puts its figure in `fig`, its trace in `main` and its facts in `facts`. A role readout's
+// text (`.b-rwrap`) spans fig → slack instead (main → foot from 640), and its excess lands in `slack`.
 const MONO = `"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace`;
 /** Rail beside the readout from here. */
 const MD = "@media (min-width:1024px)";
-/** The readout splits into trace | evidence from here. */
-const XL = "@media (min-width:1280px)";
 
 export const STYLE = `
-#b{--pad:1rem;--sel:var(--mauve)}
-@media (min-width:640px){#b{--pad:1.5rem}}
+/* --ny: where a rail row's node sits (graph.ts, NODE_Y): the label's top padding + half the 22 px title line. */
+#b{--pad:1rem;--sel:var(--mauve);--ny:19px}
+@media (min-width:640px){#b{--pad:1.5rem;--ny:21px}}
 
 /* ── Header ── */
 #b .b-kicker{font-family:${MONO};font-size:12px;line-height:1rem;color:var(--faint)}
@@ -35,7 +36,9 @@ export const STYLE = `
 #b .b-grid{display:grid;grid-template-columns:minmax(0,1fr);row-gap:1.75rem;margin-top:1.75rem}
 #b .b-col{min-width:0}
 ${MD}{
-  #b .b-grid{grid-template-columns:minmax(0,21rem) minmax(0,1fr);column-gap:clamp(1.75rem,3.2vw - .5rem,2.5rem);margin-top:2rem}
+  /* The frame stretches to the rail, but never past one 900 px screen (the readout's own content is shorter). */
+  #b .b-frame{max-height:56.25rem}
+  #b .b-grid{grid-template-columns:minmax(0,clamp(22rem,2rem + 29vw,24.5rem)) minmax(0,1fr);column-gap:clamp(1.75rem,3.2vw - .5rem,2.5rem);margin-top:2rem}
 }
 
 /* ── The rail: D's graph, compact rows. Rows have no margins: every pixel is a row that paints the lanes. ── */
@@ -43,22 +46,26 @@ ${MD}{
 #b .b-row{position:relative;display:grid;grid-template-columns:48px minmax(0,1fr);column-gap:10px;--on:0;--story:0}
 #b .b-g{position:relative}
 #b .b-lanes{position:absolute;inset:0}
-#b .b-lab{display:block;padding:6px 10px 7px;border-radius:6px;cursor:pointer;
+#b .b-lab{display:block;padding:8px 12px 10px;border-radius:6px;cursor:pointer;
   background:color-mix(in srgb,var(--c) calc(var(--on) * 11%),transparent);
   box-shadow:inset 2px 0 0 color-mix(in srgb,var(--c) calc(var(--story) * 100%),transparent);
   transition:background-color .2s ease,box-shadow .2s ease}
 #b .b-row:hover .b-lab{background:color-mix(in srgb,var(--c) calc(7% + var(--on) * 4%),transparent)}
 #b .b-l1{display:block}
 #b .b-title{font-size:15px;line-height:22px;font-weight:500;color:var(--text)}
-#b .b-l2{display:block;font-size:13px;line-height:18px;color:var(--muted)}
+#b .b-l2{display:block;margin-top:1px;font-size:13px;line-height:19px;color:var(--muted)}
+/* "context · organization" breaks only between the two, never inside either. */
+#b .b-l2 :is(.b-ctx,.b-org){white-space:nowrap}
 #b .b-ctx{color:var(--c);font-weight:500}
-#b .b-l3{display:flex;justify-content:space-between;column-gap:.75rem;margin-top:1px;font-family:${MONO};font-size:11px;line-height:18px;color:var(--faint)}
+#b .b-l3{display:flex;flex-wrap:wrap;justify-content:space-between;column-gap:.75rem;margin-top:4px;font-family:${MONO};font-size:12px;line-height:20px;color:var(--faint)}
+/* A date range never breaks; when the tag doesn't fit beside it (phones), the tag takes its own line, right-aligned. */
+#b .b-when{white-space:nowrap}
 #b.b-otw .b-when{color:var(--text)}
-#b .b-tag{flex:none;color:color-mix(in srgb,var(--c) calc(var(--story) * 100%),var(--faint));white-space:nowrap;transition:color .2s ease}
+#b .b-tag{flex:none;margin-left:auto;font-size:11px;color:color-mix(in srgb,var(--c) calc(var(--story) * 100%),var(--faint));white-space:nowrap;transition:color .2s ease}
 #b .b-drafttag{margin-left:.375rem;vertical-align:2px;font-family:${MONO};font-size:10px;line-height:14px;padding:0 4px;border:1px dashed color-mix(in srgb,var(--peach) 60%,transparent);border-radius:3px;color:var(--peach)}
-#b .b-headline{padding:8px 10px 6px;font-family:${MONO};font-size:11px;line-height:18px;color:var(--faint)}
+#b .b-headline{padding:10px 12px 8px;font-family:${MONO};font-size:11px;line-height:18px;color:var(--faint)}
 #b .b-headref{border-radius:2px;padding:0 4px;background:color-mix(in srgb,var(--lavender) 15%,transparent);color:var(--lavender)}
-#b .b-row[data-lane="education"] .b-headline{padding-bottom:4px}
+#b .b-row[data-lane="education"] .b-headline{padding-bottom:6px}
 
 #b .b-seg{position:absolute;width:2px;margin-left:-1px;transition:opacity .2s ease}
 #b .b-seg[data-s="active"]{background:var(--c)}
@@ -92,7 +99,7 @@ ${MD}{
 #b .b-radio{position:absolute;inset:0;width:1px;height:100%;margin:0;appearance:none}
 ${MD}{#b .b-radios{position:fixed;top:50%;height:1px}}
 
-/* ── The readout frame (H's), one column below XL. ── */
+/* ── The readout frame (H's): one column below 640, then trace over figure + facts. ── */
 #b .b-frame{position:relative;display:grid;min-width:0;
   grid-template-columns:var(--pad) minmax(0,1fr) var(--pad);
   grid-template-rows:[head] auto [titles] auto [fig] auto [main] auto [facts] auto [slack] 1fr [foot] auto [end] 1.25rem [stop]}
@@ -122,7 +129,8 @@ ${MD}{#b .b-radios{position:fixed;top:50%;height:1px}}
 #b .b-trace{grid-column:2;grid-row:main;position:relative;list-style:none;padding:0;margin:1.25rem 0 0}
 #b .b-facts{grid-column:2;grid-row:facts;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:1.25rem;row-gap:.75rem;margin:1.25rem 0 0;padding-top:1rem;border-top:1px solid var(--border)}
 #b .b-rwrap{grid-column:2;grid-row:fig/foot;display:flex;flex-direction:column;gap:1.25rem;margin-top:1.25rem;min-width:0}
-#b .b-foot{grid-column:2;grid-row:foot;margin-top:1.25rem;padding-top:.75rem;border-top:1px solid var(--border)}
+/* The foot sits at the bottom of its row: a footer without outside links (or without a page link) still ends the frame. */
+#b .b-foot{grid-column:2;grid-row:foot;align-self:end;margin-top:1.25rem;padding-top:.75rem;border-top:1px solid var(--border)}
 
 #b .b-step{position:relative;padding:0 0 1rem 1.25rem}
 #b .b-step:last-child{padding-bottom:0}
@@ -150,6 +158,14 @@ ${MD}{#b .b-radios{position:fixed;top:50%;height:1px}}
 #b .b-out{font-family:${MONO};font-size:12px;color:var(--muted)}
 #b .b-back{font-family:${MONO};font-size:12px;color:var(--faint);text-decoration:none}
 #b .b-inl{color:var(--text)}
+/* The degree's "inside it" list: each line is a label for that commit's radio. */
+#b .b-helds{list-style:none;margin:.375rem 0 0;padding:0;display:grid;row-gap:.3rem;font-size:14px;line-height:1.45}
+@media (min-width:640px){#b .b-helds{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(var(--rows),auto);grid-auto-flow:column;column-gap:1.5rem}}
+#b .b-held{cursor:pointer;color:var(--text);text-decoration:underline;text-decoration-color:transparent;text-underline-offset:4px;transition:text-decoration-color .2s ease}
+#b .b-held:hover{text-decoration-color:var(--c)}
+#b .b-held-dot{display:inline-block;width:7px;height:7px;margin-right:.5rem;vertical-align:1px;border-radius:9999px;background:var(--c)}
+#b .b-held-t,#b .b-held-w{white-space:nowrap}
+#b .b-held-w{color:var(--muted)}
 
 /* Figures (H's). */
 #b .b-plate{display:grid;place-items:center;padding:.6rem .5rem;border-radius:6px;border:1px solid color-mix(in srgb,var(--hue) 28%,var(--border));background:color-mix(in srgb,var(--surface) 55%,var(--bg))}
@@ -171,10 +187,14 @@ ${MD}{
   /* The rail beside the readout already prints every date. */
   #b .b-dt{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   #b .b-back{display:none}
+  /* Only "↑ all roles" lives in a thin footer, so from MD it would be an empty rule. */
+  #b .b-foot-thin{border-top:0;padding-top:0}
   #b .b-h3{font-size:1.5rem}
 }
 /* From 640: the trace first, then the figure with the facts beside it (no facts row of their own). */
 @media (min-width:640px){
+  #b .b-lab{padding:10px 12px 12px}
+  #b .b-headline{padding-top:12px}
   #b .b-frame{grid-template-columns:var(--pad) minmax(0,20rem) 1.5rem minmax(0,1fr) var(--pad);
     grid-template-rows:[head] auto [titles] auto [main] auto [fig] auto [slack] 1fr [foot] auto [end] 1.25rem [stop]}
   #b .b-titles,#b .b-trace,#b .b-rwrap,#b .b-foot{grid-column:2/5}
@@ -182,23 +202,6 @@ ${MD}{
   #b .b-fig{grid-column:2;grid-row:fig;margin-top:1.5rem}
   #b .b-facts{grid-column:4;grid-row:fig;grid-template-columns:minmax(0,1fr);align-self:start;margin-top:1.5rem;padding-top:0;border-top:0}
 }
-${XL}{
-  #b .b-frame{grid-template-columns:var(--pad) minmax(0,1fr) 1.75rem minmax(0,19rem) var(--pad);
-    grid-template-rows:[head] auto [titles] auto [main] auto [facts] auto [slack] 1fr [foot] auto [end] 1.25rem [stop]}
-  #b .b-titles{grid-column:2/5}
-  #b .b-trace{grid-row:main/foot;margin-top:1.125rem}
-  #b .b-steptext{font-size:14.5px;line-height:1.6}
-  #b .b-fig{grid-column:4;grid-row:main;margin-top:1.125rem}
-  #b .b-plate{padding:.5rem .375rem}
-  #b .b-facts{grid-column:4;grid-row:facts;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:1rem}
-  #b .b-trace{grid-column:2}
-  #b .b-rwrap{display:contents}
-  #b .b-rmain{grid-column:2;grid-row:main/foot;margin-top:1.125rem}
-  #b .b-rmain:only-child{grid-column:2/5}
-  #b .b-rside{grid-column:4;grid-row:main/foot;margin-top:1.125rem}
-  #b .b-foot{grid-column:2/5;align-self:end}
-}
-
 /* No :has(): every readout in normal flow, each framed; the rail is a plain list. */
 @supports not selector(:has(*)){
   #b .b-frame{display:block}

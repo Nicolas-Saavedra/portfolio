@@ -9,7 +9,10 @@
 //   - Blinka, NoEstasSolx: one span, one role (1:1).
 //   - GOLD → mercury: the research-assistant role, then the thesis. The story outlives the role.
 //   - Teaching: the tutor role, then the instructor role. One Case Study spans the whole Teaching Track.
-//   - Portafolio has no Case Study. Education sits beside the Tracks and has none either.
+//   - Portafolio has no Case Study. Education sits beside the Tracks and has none either: it isn't a Case Study, but it
+//     carries a readout of its own (`story`), and its counts are derived from the roles and spans inside it
+//     (`educationFacts`), never typed in.
+// - A Case Study page on this site is optional (`page`). Without one, the home page's readout is the whole Case Study.
 
 export type TrackId = "engineering" | "teaching";
 
@@ -144,18 +147,40 @@ export const ENTRIES = ROLES;
 
 export interface Education {
   institution: string;
+  /** The full name, from the LinkedIn export. */
   degree: string;
+  /** The degree's two halves, for tight spaces: the rail prints `field` as its title and `level` as its context. */
+  level: string;
+  field: string;
   start: YearMonth;
   end: YearMonth;
   location: string;
+  /**
+   * The readout's story, first person: the degree's version of a Case Study's problem → what I did → outcome. Between
+   * the two, the readout lists what the degree held, derived (`insideDegree`), not written here. Counts never go in this
+   * copy; they're derived (`educationFacts`).
+   */
+  story: { degree: string; after: string };
+  /** Hard counts only Nicolas can supply (a distinction, say), shown after the derived ones. None yet. */
+  facts?: Fact[];
+  /** The thesis's formal title, if it has one beyond "mercury-lib". Shown beside the thesis in the readout once set. */
+  thesisTitle?: string;
+  /** A focus area or specialization, if the degree had one. Shown under the degree's name once set. */
+  focus?: string;
 }
 
 export const EDUCATION: Education = {
   institution: "Universidad de los Andes",
   degree: "Bachelor's in Systems and Computing Engineering",
+  level: "Bachelor's",
+  field: "Systems and Computing Engineering",
   start: "2020-01",
   end: "2026-03",
   location: "Bogotá, Colombia",
+  story: {
+    degree: "My engineering degree. Both Tracks on this page began here, as jobs I took at the university while I studied.",
+    after: "I finished it while already at Blinka. Both Tracks carry on past it.",
+  },
 };
 
 // ── Selected Work: Case Studies ────────────────────────────────────────────────────────────────────────────────
@@ -200,15 +225,20 @@ export interface CaseStudy {
   spans: Span[];
   /** One-line summary for the home page. */
   summary: string;
-  /** The Case Study page tells problem → what he did → outcome; a variant may tease it. */
+  /** Problem → what I did → outcome. With no page (`page`), this is the whole Case Study, so it can't read as a teaser. */
   problem: string;
   did: string;
   outcome: string;
   technologies: string[];
   /** Hard counts. No number is printed twice in one view, so counts live here and not in the trace copy. */
   facts: Fact[];
-  /** The Case Study page on this site. */
+  /** Where the Case Study page would live on this site. Only linked when `page` is true. */
   href: string;
+  /**
+   * Whether the Case Study has a page of its own at `href`. Off by default: the home page's readout is then the complete
+   * Case Study, and nothing links to `href`. Turn it on per Case Study once its page exists.
+   */
+  page?: boolean;
   /** Outside links (repos, live sites), possibly none. */
   links: { label: string; href: string }[];
   /** Copy not cleared for publishing yet. Show a visible "draft" mark. */
@@ -348,3 +378,30 @@ export const caseStudyBySlug = (slug: string): CaseStudy | undefined => CASE_STU
 export const caseStudyOf = (role: Role): CaseStudy | undefined => (role.caseStudy ? caseStudyBySlug(role.caseStudy) : undefined);
 /** The roles a Case Study spans, oldest first (not its non-role spans). */
 export const rolesOf = (cs: CaseStudy): Role[] => cs.spans.flatMap((s) => (s.role ? [roleById(s.role)!] : []));
+
+/**
+ * What the degree held, oldest first: every role at the degree's institution that began during it, and every Case Study
+ * span that isn't a role and began during it (the thesis). Blinka overlaps the degree's last months but isn't at the
+ * university, so it isn't held.
+ */
+export function insideDegree(edu: Education = EDUCATION) {
+  const during = (ym: string) => monthIndex(ym) >= monthIndex(edu.start) && monthIndex(ym) <= monthIndex(edu.end);
+  const roles = ROLES.filter((r) => r.organization === edu.institution && during(r.start));
+  const spans = CASE_STUDIES.flatMap((cs) => cs.spans.filter((s) => !s.role && during(s.start)).map((span) => ({ cs, span })));
+  return { roles, spans };
+}
+
+/** The degree's facts: counts derived from the data (never typed in), then any Nicolas adds by hand (`facts`). */
+export function educationFacts(edu: Education = EDUCATION): Fact[] {
+  const { roles, spans } = insideDegree(edu);
+  const held = new Set(roles.map((r) => r.id));
+  const began = CASE_STUDIES.filter((cs) => {
+    const first = cs.spans[0];
+    return first.role ? held.has(first.role) : spans.some((s) => s.span === first);
+  });
+  return [
+    { value: String(roles.length), label: "roles at the university, begun while I studied" },
+    { value: String(began.length), label: "Case Studies that began at the university" },
+    ...(edu.facts ?? []),
+  ];
+}

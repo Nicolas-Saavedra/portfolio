@@ -11,8 +11,10 @@ export type Lane = "engineering" | "teaching" | "education";
 /** active: in a role (or studying). idle: the Track exists but sits between roles. none: not yet, or no longer. */
 export type State = "active" | "idle" | "none";
 
-/** Where a row's node sits, from the row's top, in px: the centre of the row's first line (title). */
-export const NODE_Y = 17;
+/** Where a row's node sits, from the row's top, in px, from 640 px wide: the centre of the row's first line (title), i.e.
+ * the label's 10 px top padding plus half its 22 px title line. Thin rows (HEAD, root) centre their 18 px line here with
+ * 12 px of padding. The rail reads it as the CSS variable `--ny` (style.ts), which is 2 px less below 640. */
+export const NODE_Y = 21;
 /** The lane coordinate space; positions are emitted as % of the graph column. */
 export const GRAPH_W = 64;
 

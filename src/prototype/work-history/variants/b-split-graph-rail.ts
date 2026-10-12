@@ -7,14 +7,14 @@
 // other rows.
 // - H's reserved slot: every readout is rendered once and every readout's parts sit in the same grid cells
 //   (`visibility: hidden` for the unselected), so the slot is as tall as the tallest readout and switching never reflows.
-// - Desktop (≥ 1024): rail | readout. From 1280 the readout splits into trace | evidence like H; below, one column.
+// - Desktop (≥ 1024): rail | readout. The readout is the trace, then the figure with the facts beside it.
 // - Phones and tablets: the rail (the whole record, scannable), then the readout slot. The radios live at the top of
 //   the readout slot, so tapping a row focuses its radio and the browser scrolls the readout into view, without JS.
 // - No JS after mount: radios + :has() for selection, scroll-driven animations for the graph's staging.
-import { caseStudyBySlug, caseStudyOf, rolesOf, type CaseStudy, type Role, type Span } from "../content";
+import { caseStudyBySlug, caseStudyOf, educationFacts, insideDegree, rolesOf, type CaseStudy, type Fact, type Role, type Span } from "../content";
 import type { Variant } from "../types";
-import { FIGURES } from "./b/diagrams";
-import { GRAPH_W, NODE_Y, mi, model, type Lane, type Row, type State } from "./b/graph";
+import { DEGREE_CAPTION, FIGURES, degree } from "./b/diagrams";
+import { GRAPH_W, mi, model, type Lane, type Row, type State } from "./b/graph";
 import { STYLE } from "./b/style";
 
 const esc = (s: string) =>
@@ -38,13 +38,16 @@ const dur = (n: number) => {
 const COLOR: Record<Lane, string> = { engineering: "var(--mauve)", teaching: "var(--peach)", education: "var(--sky)" };
 const STEPS = ["problem", "did", "outcome"] as const;
 
-/** A selectable commit: its radio key, the readout it opens, its colour, and the Case Study it belongs to. */
+/** A selectable commit: its radio key, the readout it opens, its colour, and the story it belongs to (a Case Study's
+ * slug, or "edu" for the degree), whose rail rows light together. */
 interface Pick {
   k: string;
   ro: string;
   hue: string;
-  cs?: string;
+  story?: string;
 }
+/** The readouts that get the full Case Study frame and motion: every Case Study, and the degree. */
+const isFull = (ro: string) => ro.startsWith("cs-") || ro === "edu";
 
 const variant: Variant = {
   name: "Split, graph as rail",
@@ -67,7 +70,7 @@ const variant: Variant = {
     const seg = (l: Lane, s: State | "next", top: string, bottom: string) =>
       s === "none" ? "" : `<i class="b-seg" data-lane="${l}" data-s="${s}" style="left:${at(X[l])};top:${top};bottom:${bottom};--c:${COLOR[l]}"></i>`;
     const node = (l: Lane | "next", n: string) =>
-      `<span class="b-node" data-n="${n}" style="left:${at(l === "next" ? X.education : X[l])};top:${NODE_Y}px;--c:${l === "next" ? "var(--green)" : COLOR[l]}"></span>`;
+      `<span class="b-node" data-n="${n}" style="left:${at(l === "next" ? X.education : X[l])};top:var(--ny);--c:${l === "next" ? "var(--green)" : COLOR[l]}"></span>`;
 
     function rowLanes(row: Row, i: number) {
       const tNext = M.tBelow(i);
@@ -75,20 +78,20 @@ const variant: Variant = {
       for (const l of LANES) {
         let above: State | "next" = M.state(l, row.t + 0.5);
         if (row.kind === "head" && openToWork && M.state(l, M.now + 0.5) === "active") above = "next";
-        html += seg(l, above, "0", `calc(100% - ${NODE_Y}px)`);
+        html += seg(l, above, "0", `calc(100% - var(--ny))`);
         for (const p of M.stretches(l, row.t, tNext))
-          html += seg(l, p.s, `calc(${NODE_Y}px + (100% - ${NODE_Y}px) * ${p.f0.toFixed(4)})`, `calc((100% - ${NODE_Y}px) * ${(1 - p.f1).toFixed(4)})`);
+          html += seg(l, p.s, `calc(var(--ny) + (100% - var(--ny)) * ${p.f0.toFixed(4)})`, `calc((100% - var(--ny)) * ${(1 - p.f1).toFixed(4)})`);
       }
       if (row.kind === "entry" && row.fork) {
         const x = X[row.e.track], tx = X.education;
-        html += `<svg class="b-curve" data-lane="${row.e.track}" style="top:${NODE_Y}px;height:34px;stroke:${COLOR[row.e.track]}" viewBox="0 0 ${GRAPH_W} 34" preserveAspectRatio="none"><path vector-effect="non-scaling-stroke" d="M${x} 0C${x} 20 ${tx} 14 ${tx} 34"/></svg>`;
+        html += `<svg class="b-curve" data-lane="${row.e.track}" style="top:var(--ny);height:34px;stroke:${COLOR[row.e.track]}" viewBox="0 0 ${GRAPH_W} 34" preserveAspectRatio="none"><path vector-effect="non-scaling-stroke" d="M${x} 0C${x} 20 ${tx} 14 ${tx} 34"/></svg>`;
       }
       if (row.kind === "next") {
         const curves = (["engineering", "teaching"] as Lane[])
           .filter((l) => M.state(l, M.now + 0.5) === "active")
           .map((l) => `<path vector-effect="non-scaling-stroke" d="M${X.education} 0C${X.education} 55 ${X[l]} 45 ${X[l]} 100"/>`)
           .join("");
-        html = `<svg class="b-curve" style="top:${NODE_Y}px;height:calc(100% - ${NODE_Y}px);stroke:var(--green);stroke-dasharray:4 4" viewBox="0 0 ${GRAPH_W} 100" preserveAspectRatio="none">${curves}</svg>`;
+        html = `<svg class="b-curve" style="top:var(--ny);height:calc(100% - var(--ny));stroke:var(--green);stroke-dasharray:4 4" viewBox="0 0 ${GRAPH_W} 100" preserveAspectRatio="none">${curves}</svg>`;
       }
       return html;
     }
@@ -98,17 +101,25 @@ const variant: Variant = {
     // ── The rail: one row per commit. Selectable rows are <label>s for radios that live in the readout slot. ───────
     const picks: Pick[] = [];
     const draftTag = `<span class="b-drafttag">draft</span>`;
+    /** The "↳" tag on line 3: which full readout the row opens (a Case Study's short name, or "Education"). */
+    const tagOf = (p: Pick) => {
+      if (p.story === "edu") return `<span class="sr-only">Opens: </span>Education`;
+      const cs = p.story ? caseStudyBySlug(p.story) : undefined;
+      return cs ? `<span class="sr-only">Case Study: </span>${esc(cs.short)}` : "";
+    };
     function label(p: Pick, lane: string, title: string, where: string, when: string, extra = "") {
       picks.push(p);
-      const cs = p.cs ? caseStudyBySlug(p.cs) : undefined;
+      const tag = tagOf(p);
       return `<label for="b-r-${p.k}" class="b-lab">
         <span class="b-l1"><span id="b-t-${p.k}" class="b-title">${title}</span>${extra}</span>
         <span id="b-w-${p.k}" class="b-l2" style="--c:${lane}">${where}</span>
-        <span class="b-l3"><span class="b-when">${when}</span>${cs ? `<span class="b-tag" data-cs="${cs.slug}"><span aria-hidden="true">↳ </span><span class="sr-only">Case Study: </span>${esc(cs.short)}</span>` : ""}</span>
+        <span class="b-l3"><span class="b-when">${when}</span>${tag ? `<span class="b-tag"><span aria-hidden="true">↳ </span>${tag}</span>` : ""}</span>
       </label>`;
     }
-    const whereOf = (r: Role) =>
-      `<span class="b-ctx">${esc(r.context ?? r.organization)}</span>${r.context ? ` · ${esc(r.organization)}` : ""}`;
+    /** "context · organization", breaking only before the organization when it doesn't fit on one line. */
+    const where = (ctxText: string, org?: string) =>
+      `<span class="b-ctx">${esc(ctxText)}</span>${org ? ` <span class="b-org">· ${esc(org)}</span>` : ""}`;
+    const whereOf = (r: Role) => where(r.context ?? r.organization, r.context ? r.organization : undefined);
 
     function rowHtml(row: Row, i: number): string {
       const lanes = rowLanes(row, i);
@@ -127,20 +138,20 @@ const variant: Variant = {
           ${label(p, "var(--green)", esc(ctx.openToWorkCopy.signal), `<span class="b-ctx">${esc(ctx.openToWorkCopy.sentence)}</span>`, "uncommitted")}</li>`;
       }
       if (row.kind === "edu") {
-        const p = { k: "edu", ro: "edu", hue: COLOR.education };
-        return `<li class="b-row" data-k="edu" data-lane="education" style="--c:${COLOR.education}">${graphCell(lanes, node("education", "edu"))}
-          ${label(p, COLOR.education, esc(edu.degree), `<span class="b-ctx">${esc(edu.institution)}</span>`, `${time(edu.start)} → ${time(edu.end)}${srDur(edu.start, edu.end)}`)}</li>`;
+        const p = { k: "edu", ro: "edu", hue: COLOR.education, story: "edu" };
+        return `<li class="b-row" data-k="edu" data-story="edu" data-lane="education" style="--c:${COLOR.education}">${graphCell(lanes, node("education", "edu"))}
+          ${label(p, COLOR.education, esc(edu.field), where(edu.level, edu.institution), `<span class="sr-only">Education, </span>${time(edu.start)} → ${time(edu.end)}${srDur(edu.start, edu.end)}`)}</li>`;
       }
       if (row.kind === "span") {
         const cs = caseStudyBySlug(row.cs)!;
-        const p = { k: spanKey(cs, row.s), ro: `cs-${cs.slug}`, hue: csHue(cs), cs: cs.slug };
-        return `<li class="b-row" data-k="${p.k}" data-cs="${cs.slug}" data-lane="education" style="--c:${COLOR.education}">${graphCell(lanes, node("education", "span"))}
-          ${label(p, COLOR.education, esc(row.s.label), `<span class="b-ctx">inside the degree</span> · not a role`, `${time(row.s.start)} → ${until(row.s.end)}${srDur(row.s.start, row.s.end)}`)}</li>`;
+        const p = { k: spanKey(cs, row.s), ro: `cs-${cs.slug}`, hue: csHue(cs), story: cs.slug };
+        return `<li class="b-row" data-k="${p.k}" data-story="${cs.slug}" data-lane="education" style="--c:${COLOR.education}">${graphCell(lanes, node("education", "span"))}
+          ${label(p, COLOR.education, esc(row.s.label), where("inside the degree", "not a role"), `${time(row.s.start)} → ${until(row.s.end)}${srDur(row.s.start, row.s.end)}`)}</li>`;
       }
       const e = row.e;
       const cs = caseStudyOf(e);
-      const p = { k: e.id, ro: cs ? `cs-${cs.slug}` : `role-${e.id}`, hue: COLOR[e.track], cs: cs?.slug };
-      return `<li class="b-row" data-k="${e.id}" ${cs ? `data-cs="${cs.slug}"` : ""} data-lane="${e.track}" style="--c:${COLOR[e.track]}">${graphCell(lanes, node(e.track, "dot"))}
+      const p = { k: e.id, ro: cs ? `cs-${cs.slug}` : `role-${e.id}`, hue: COLOR[e.track], story: cs?.slug };
+      return `<li class="b-row" data-k="${e.id}" ${cs ? `data-story="${cs.slug}"` : ""} data-lane="${e.track}" style="--c:${COLOR[e.track]}">${graphCell(lanes, node(e.track, "dot"))}
         ${label(p, COLOR[e.track], esc(e.title), whereOf(e), `<span class="sr-only">${esc(trackLabel(e.track))}, </span>${time(e.start)} → ${until(e.end)}${srDur(e.start, e.end)}`, e.draft ? draftTag : "")}</li>`;
     }
     const rail = M.rows.map(rowHtml).join("");
@@ -148,6 +159,11 @@ const variant: Variant = {
     // ── Readouts: one per Case Study, one per role without one, Education, and (Open to Work) the "next" commit. ───
     const head = (left: string, right = "") => `<header class="b-head"><span>${left}</span>${right}</header>`;
     const bg = `<div class="b-fig" aria-hidden="true"></div>`;
+
+    const factsHtml = (fs: Fact[]) =>
+      fs.map((f) => `<div class="min-w-0"><dt class="sr-only">${esc(f.label)}</dt><dd class="b-fv">${esc(f.value)}</dd><dd class="b-fl">${esc(f.label)}</dd></div>`).join("");
+    const step = (label: string, j: number, body: string) =>
+      `<li class="b-step" style="--k:${j}"><span class="b-dot" aria-hidden="true"></span><span class="b-steplabel">${label}</span>${body}</li>`;
 
     function csReadout(c: CaseStudy): string {
       const fig = FIGURES[c.slug];
@@ -158,12 +174,7 @@ const variant: Variant = {
             <span class="b-chip-l">${esc(s.label)}</span>${s.role ? "" : `<span class="b-chip-n">not a role</span>`}<span class="b-dt"> ${range(s.start, s.end, ctx.now)}</span></li>`;
         })
         .join("");
-      const facts = c.facts
-        .map((f) => `<div class="min-w-0"><dt class="sr-only">${esc(f.label)}</dt><dd class="b-fv">${esc(f.value)}</dd><dd class="b-fl">${esc(f.label)}</dd></div>`)
-        .join("");
-      const steps = STEPS.map(
-        (key, j) => `<li class="b-step" style="--k:${j}"><span class="b-dot" aria-hidden="true"></span><span class="b-steplabel">${key}</span><p class="b-steptext">${esc(c[key])}</p></li>`,
-      ).join("");
+      const steps = STEPS.map((key, j) => step(key, j, `<p class="b-steptext">${esc(c[key])}</p>`)).join("");
       return `
       <article class="b-ro" data-ro="cs-${c.slug}" aria-labelledby="b-h-${c.slug}" style="--hue:${csHue(c)}">
         <div class="b-body">
@@ -174,11 +185,11 @@ const variant: Variant = {
             <ol class="b-spans" aria-label="The story's stretches">${chips}</ol>
           </div>
           <ol class="b-trace" aria-label="Problem, what I did, outcome">${steps}</ol>
-          <dl class="b-facts">${facts}</dl>
+          <dl class="b-facts">${factsHtml(c.facts)}</dl>
           <div class="b-foot">
-            <p class="b-tech">${c.technologies.map(esc).join(" · ")}</p>
+            <p class="b-tech"><span class="sr-only">Technologies: </span>${c.technologies.map(esc).join(" · ")}</p>
             <div class="b-links">
-              <a href="${esc(c.href)}" class="b-link b-read">Read the Case Study<span class="sr-only">: ${esc(c.title)}</span> <span aria-hidden="true">→</span></a>
+              ${c.page ? `<a href="${esc(c.href)}" class="b-link b-read">Read the Case Study<span class="sr-only">: ${esc(c.title)}</span> <span aria-hidden="true">→</span></a>` : ""}
               ${c.links.map((l) => `<a href="${esc(l.href)}" class="b-link b-out" rel="noopener">${esc(l.label)} <span aria-hidden="true">↗</span></a>`).join("")}
               <a href="#b-rail" class="b-link b-back">↑ all roles</a>
             </div>
@@ -211,37 +222,47 @@ const variant: Variant = {
       </article>`;
     }
 
+    /** The degree, in the Case Study frame: the story with what it held (each one a label for that commit's radio, so the
+     * trunk links to its stories without retelling them), derived facts, and the trunk figure. Not a Case Study. */
     function eduReadout(): string {
-      const inside = ctx.work.flatMap((c) => c.spans.filter((s) => !s.role).map((s) => ({ c, s })));
+      const { roles, spans } = insideDegree(edu);
+      const held = [
+        ...roles.map((r) => ({ k: r.id, start: r.start, end: r.end, c: COLOR[r.track], t: esc(r.title), w: esc(r.context ?? r.organization) })),
+        ...spans.map(({ cs, span }) => ({
+          k: spanKey(cs, span), start: span.start, end: span.end, c: COLOR.education,
+          t: esc(span.label) + (edu.thesisTitle ? `: <cite>${esc(edu.thesisTitle)}</cite>` : ""), w: "not a role",
+        })),
+      ].sort((a, b) => mi(a.start) - mi(b.start));
+      const list = held
+        .map((h) => `<li><label for="b-r-${h.k}" class="b-held" style="--c:${h.c}"><span class="b-held-dot" aria-hidden="true"></span><span class="b-held-t">${h.t}</span> <span class="b-held-w">· ${h.w}</span></label><span class="sr-only">, ${range(h.start, h.end, ctx.now)}</span></li>`)
+        .join("");
+      const forks = tracks.flatMap((t, i) => {
+        const at = roles.filter((r) => r.track === t.id).map((r) => mi(r.start)).sort((a, b) => a - b);
+        return at.length ? [{ label: t.label, color: COLOR[t.id], up: i === 0, at }] : [];
+      });
+      const fig = degree({
+        start: mi(edu.start), end: mi(edu.end) + 1, forks, trunk: edu.level,
+        loose: spans.map(({ span }) => ({ label: span.label.split(",").pop()!.trim(), at: mi(span.start) })),
+      });
+      const st = edu.story;
       return `
       <article class="b-ro" data-ro="edu" aria-labelledby="b-h-edu" style="--hue:${COLOR.education}">
         <div class="b-body">
-          ${head(`education · <span style="color:var(--hue)">the trunk</span>`)}
+          ${head(`education · <span style="color:var(--hue)">${esc(edu.level.toLowerCase())}</span>`, `<span>beside the Tracks, not in one</span>`)}
           <div class="b-titles">
             <h3 id="b-h-edu" class="b-h3">${esc(edu.degree)}</h3>
-            <p class="b-sub"><span style="color:var(--hue)">${esc(edu.institution)}</span> · ${esc(edu.location)}</p>
-            <p class="b-meta">Beside the Tracks<span class="b-dt"> · ${time(edu.start)} → ${time(edu.end)} · ${dur(months(edu.start, edu.end))}</span></p>
+            <p class="b-sub">${esc(edu.institution)} · ${esc(edu.location)}${edu.focus ? ` · ${esc(edu.focus)}` : ""}</p>
+            <ol class="b-spans" aria-label="The degree's dates"><li class="b-chip" style="--lit:1"><span class="b-chip-l">${esc(edu.level)}</span><span class="b-dt"> ${range(edu.start, edu.end, ctx.now)}</span></li></ol>
           </div>
-          <div class="b-rwrap">
-            <div class="b-rmain b-prose">
-              <p>The trunk of the graph. Both Tracks branch off it; neither is part of it.</p>
-              <ul class="b-list mt-3">${tracks
-                .map((t) => {
-                  const fork = ctx.entries.filter((e) => e.track === t.id).map((e) => e.start).sort()[0];
-                  return `<li><span style="color:${COLOR[t.id]}">${esc(t.label)}</span> forks off <span class="b-dt-any">${time(fork)}</span></li>`;
-                })
-                .join("")}</ul>
-              ${inside
-                .map(
-                  ({ c, s }) => `<p class="mt-3">Inside it: <span class="text-text">${esc(s.label)}</span><span class="b-dt"> (${range(s.start, s.end, ctx.now)})</span>, a commit on the trunk, not a role. It's the second half of
-                  <a href="${esc(c.href)}" class="b-link b-inl">${esc(c.title)}</a>.</p>`,
-                )
-                .join("")}
-            </div>
-          </div>
+          <ol class="b-trace" aria-label="The degree, what it held, after it">
+            ${step("the degree", 0, `<p class="b-steptext">${esc(st.degree)}</p>`)}
+            ${step("inside it", 1, `<ul class="b-helds" style="--rows:${Math.ceil(held.length / 2)}" aria-label="Held during the degree, oldest first">${list}</ul>`)}
+            ${step("after it", 2, `<p class="b-steptext">${esc(st.after)}</p>`)}
+          </ol>
+          <dl class="b-facts">${factsHtml(educationFacts(edu))}</dl>
           ${back}
         </div>
-        ${bg}
+        <figure class="b-fig"><div class="b-plate">${fig}</div><figcaption>${esc(DEGREE_CAPTION)}</figcaption></figure>
       </article>`;
     }
 
@@ -292,7 +313,7 @@ const variant: Variant = {
     ].join("");
 
     // The default selection: the newest Case Study commit; with Open to Work, the "next" commit.
-    const first = openToWork ? picks.find((p) => p.k === "next")! : picks.find((p) => p.cs)!;
+    const first = openToWork ? picks.find((p) => p.k === "next")! : picks.find((p) => p.ro.startsWith("cs-"))!;
     const radios = picks
       .map(
         (p) =>
@@ -320,7 +341,7 @@ const variant: Variant = {
           ${tracks.map((t) => swatch(t.id, t.label)).join("")}
           ${swatch("education", "Education, the trunk")}
           <li><i class="b-sw b-sw-idle"></i>between roles</li>
-          <li><span class="text-text">↳</span> opens a Case Study</li>
+          <li><span class="text-text">↳</span> opens in depth</li>
         </ul>
       </div>
       <div class="b-grid">
@@ -349,11 +370,11 @@ function css(picks: Pick[]): string {
         `${ro} :is(.b-fig,.b-body > *,.b-rwrap > *){opacity:1}`,
         `${sel}{--sel:${p.hue}}`,
         `${sel} .b-row[data-k="${p.k}"]{--on:1}`,
-        p.cs ? `${sel} .b-row[data-cs="${p.cs}"]{--story:1}` : "",
+        p.story ? `${sel} .b-row[data-story="${p.story}"]{--story:1}` : "",
         `${sel} .b-chip[data-k="${p.k}"]{--lit:1}`,
         `#b:has(#b-r-${p.k}:focus-visible) .b-row[data-k="${p.k}"] .b-lab{outline:2px solid var(--lavender);outline-offset:2px}`,
       ].join("\n"),
-      motion: p.ro.startsWith("cs-")
+      motion: isFull(p.ro)
         ? [
             `${ro} .b-step{animation:b-in .42s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--k) * 110ms)}`,
             `${ro} .b-trace::before{animation:b-grow .5s cubic-bezier(.2,.7,.2,1) both}`,

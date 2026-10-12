@@ -160,3 +160,51 @@ export const FIGURES: Record<string, { draw: (c: CaseStudy) => string; caption: 
   },
   teaching: { draw: teaching, caption: () => "The course, one step at a time, from the first HTML tag to React." },
 };
+
+// ── B's own: the degree's figure (iteration 1). Not a Case Study, so it takes its own input, derived by the variant from
+// content.ts (`insideDegree`): the degree's months, each Track that forked off it with the months its held roles began,
+// and the months of the spans on the trunk itself (the thesis). Months run left to right to scale; nothing is printed
+// but names, so no number can repeat a fact.
+
+export interface DegreeFigure {
+  /** Month indices: the degree's first month, and the month after its last. */
+  start: number;
+  end: number;
+  /** Each Track that forked off the degree, with the start months of the roles the degree held on it (oldest first). */
+  forks: { label: string; color: string; up: boolean; at: number[] }[];
+  /** Start months of the spans on the trunk that aren't roles. */
+  loose: { label: string; at: number }[];
+  /** The trunk's own label. */
+  trunk: string;
+}
+
+/** The degree as the trunk, left to right in time: the Tracks fork off it, the thesis sits on it, and both Tracks run on
+ * past its end. Track colours as on the rail (colour means Track everywhere). */
+export function degree(f: DegreeFigure) {
+  const X0 = 14, XE = 188, Y = 86, bend = 18, dy = 56;
+  const x = (m: number) => X0 + ((m - f.start) / (f.end - f.start)) * (XE - X0);
+  const mix = (c: string) => `--line:color-mix(in srgb,${c} 70%,var(--faint))`;
+  const forks = f.forks.map((k, i) => {
+    const xf = x(k.at[0]), yb = k.up ? Y - dy : Y + dy;
+    const d = `M${xf.toFixed(1)} ${Y} C${xf.toFixed(1)} ${(Y + yb) / 2} ${(xf + bend).toFixed(1)} ${yb} ${(xf + bend * 1.6).toFixed(1)} ${yb} H${XE + 26}`;
+    const dots = k.at.map((m, j) => `<circle class="dot" style="--i:${j}" cx="${Math.max(x(m), xf + bend * 1.6).toFixed(1)}" cy="${yb}" r="4"/>`);
+    return `<g style="${mix(k.color)}">${line(d)}${head(XE + 32, yb, 0)}${dots.join("")}${comet(d, 400 + i * 250)}<text class="lb" x="${XE + 38}" y="${yb + 4}" style="fill:${k.color}">${esc(k.label)}</text></g>`;
+  });
+  const loose = f.loose.map(
+    (s) => `<circle class="nd" cx="${x(s.at).toFixed(1)}" cy="${Y}" r="5" style="stroke-width:2"/>${text(x(s.at), Y + 22, s.label, "lb", "middle")}`,
+  );
+  return svg(
+    304,
+    172,
+    [
+      comet(`M${X0} ${Y} H${XE}`, 0),
+      line(`M${X0} ${Y} H${XE}`),
+      ...forks,
+      `<circle class="nd dot" cx="${X0}" cy="${Y}" r="4"/>`,
+      `<rect class="nd" x="${XE - 6}" y="${Y - 6}" width="12" height="12" rx="2" transform="rotate(45 ${XE} ${Y})" style="fill:var(--line);stroke:none"/>`,
+      ...loose,
+      text(X0 - 4, Y - 10, f.trunk, "lb strong"),
+    ].join(""),
+  );
+}
+export const DEGREE_CAPTION = "The degree as the trunk. Both Tracks forked off it, and the thesis sits on it.";
